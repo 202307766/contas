@@ -215,8 +215,8 @@ const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Ag
 const CATS = [
   { id: "rest",  nome: "Restaurantes",   cor: "#F0A030", icone: "🍽️" },
   { id: "alim",  nome: "Alimentação",    cor: "#E4574F", icone: "🛒" },
-  { id: "entret",nome: "Entretenimento", cor: "#E86FA6", icone: "🎬" },
-  { id: "rita",  nome: "Rita",           cor: "#D6456B", icone: "🌹" },
+  { id: "entret",nome: "Entretenimento", cor: "#E86FA6", icone: "🍺" },
+  { id: "rita",  nome: "Rita",           cor: "#D6456B", icone: "🧡" },
   { id: "trans", nome: "Transporte",     cor: "#4A90D9", icone: "🚌" },
   { id: "carro", nome: "Carro",          cor: "#3A6EA5", icone: "🚗" },
   { id: "saude", nome: "Saúde",          cor: "#4CAF7D", icone: "💊" },
@@ -349,7 +349,7 @@ function render() {
   document.getElementById("app").innerHTML = `
   <div class="tabs">
     <button class="${vista === "invest" ? "ativo" : ""}" onclick="mudarVista('invest')">
-      <span class="ic">💶</span>Investimentos</button>
+      <span class="ic">💶</span>Global</button>
     <button class="${vista === "painel" ? "ativo" : ""}" onclick="mudarVista('painel')">
       <span class="ic">📊</span>Painel Principal</button>
     <button class="${vista === "dividas" ? "ativo" : ""}" onclick="mudarVista('dividas')">
@@ -420,6 +420,10 @@ function vistaPainel() {
     <div class="linha">
       <span class="nome"><span class="bola" style="background:var(--laranja)"></span>Gasto Total pelos Pais</span>
       <span class="num mono" style="color:var(--laranja)">${eur(gastoPais)}</span>
+    </div>
+    <div class="linha" onclick="mudarVista('dividas')" style="cursor:pointer">
+      <span class="nome"><span class="bola" style="background:var(--vermelho)"></span>Devem-me</span>
+      <span class="num mono" style="color:var(--vermelho)">${eur(aReceberPais() + dados.outras.reduce((s, d) => s + d.valor, 0))} ›</span>
     </div>
   </div>
 

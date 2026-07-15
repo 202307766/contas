@@ -67,6 +67,11 @@
   .stats-split .num { font-size: 15px; font-weight: 600; }
 
   .legenda { padding: 6px 20px 130px; }
+  .seletor-lista { display: flex; gap: 6px; margin: 10px 16px 0; background: var(--claro);
+    border-radius: 12px; padding: 4px; }
+  .seletor-lista button { flex: 1; padding: 8px; border-radius: 9px; font-size: 13px;
+    font-weight: 600; color: var(--cinza); }
+  .seletor-lista button.sel { background: #fff; color: var(--tinta); box-shadow: 0 1px 3px rgba(43,45,51,0.1); }
   .leg-linha { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--claro); }
   .leg-linha:last-child { border-bottom: none; }
   .leg-icone { width: 34px; height: 34px; border-radius: 999px; display: flex; align-items: center;
@@ -106,6 +111,7 @@
   .cartao .info p:first-child { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cartao .info p:last-child { font-size: 12px; color: var(--cinza); }
   .apagar { color: #C9CED4; padding: 4px; font-size: 15px; flex-shrink: 0; }
+  .editar { color: #C9CED4; padding: 4px; font-size: 14px; flex-shrink: 0; }
   .btn-mini { padding: 7px 12px; border-radius: 999px; color: #fff; font-size: 12px; flex-shrink: 0; font-weight: 600; }
 
   .sec-titulo { font-size: 13px; font-weight: 600; color: var(--cinza); text-transform: uppercase;
@@ -151,8 +157,16 @@
     color: var(--cinza); text-align: center; background: #fff; }
   .chip input[type=date] { border: none; outline: none; background: transparent; color: inherit;
     font-size: 13px; text-align: center; width: 100%; padding: 0; }
-  .nota-input { width: 100%; padding: 10px 12px; border-radius: 10px; background: var(--fundo);
-    border: none; outline: none; font-size: 14px; margin-bottom: 8px; text-align: center; user-select: text; }
+  .nota-input { width: 100%; padding: 13px 14px; border-radius: 12px; background: var(--fundo);
+    border: none; outline: none; font-size: 17px; font-weight: 500; margin-bottom: 8px;
+    text-align: center; user-select: text; }
+  .nota-input:focus { box-shadow: 0 0 0 2px var(--tinta); }
+  .nota-input::placeholder { font-weight: 400; }
+  .resumo-passo2 { text-align: center; margin: 2px 0 12px; }
+  .resumo-passo2 .rv { font-size: 34px; font-weight: 300; }
+  .resumo-passo2 .rn { font-size: 15px; font-weight: 500; margin-top: 2px; }
+  .resumo-passo2 .rp { font-size: 12px; color: var(--laranja); margin-top: 2px; }
+  .voltar-passo { color: var(--cinza); font-size: 14px; padding: 6px 10px 6px 0; }
 
   .teclado { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 8px; }
   .teclado button { padding: 12px 0; font-size: 21px; border-radius: 12px; background: var(--fundo); }
@@ -199,29 +213,38 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const CATS = [
-  { id: "alim",  nome: "Alimentação",  cor: "#E4574F", icone: "🛒" },
-  { id: "rest",  nome: "Restaurantes", cor: "#F0A030", icone: "🍽️" },
-  { id: "casa",  nome: "Casa",         cor: "#8E6CC7", icone: "🏠" },
-  { id: "trans", nome: "Transportes",  cor: "#4A90D9", icone: "🚗" },
-  { id: "saude", nome: "Saúde",        cor: "#4CAF7D", icone: "💊" },
-  { id: "lazer", nome: "Lazer",        cor: "#E86FA6", icone: "🎬" },
-  { id: "roupa", nome: "Roupa",        cor: "#5AB8B0", icone: "👕" },
-  { id: "pelad", nome: "Peladinha",    cor: "#2E8B57", icone: "⚽" },
-  { id: "volei", nome: "Volei",        cor: "#FF8C42", icone: "🏐" },
-  { id: "rita",  nome: "Rita",         cor: "#D6456B", icone: "🌹" },
-  { id: "cabel", nome: "Cabeleireiro", cor: "#6C5CE7", icone: "💈" },
-  { id: "outros",nome: "Outros",       cor: "#9AA0A8", icone: "📦" },
+  { id: "rest",  nome: "Restaurantes",   cor: "#F0A030", icone: "🍽️" },
+  { id: "alim",  nome: "Alimentação",    cor: "#E4574F", icone: "🛒" },
+  { id: "entret",nome: "Entretenimento", cor: "#E86FA6", icone: "🎬" },
+  { id: "rita",  nome: "Rita",           cor: "#D6456B", icone: "🌹" },
+  { id: "trans", nome: "Transporte",     cor: "#4A90D9", icone: "🚌" },
+  { id: "carro", nome: "Carro",          cor: "#3A6EA5", icone: "🚗" },
+  { id: "saude", nome: "Saúde",          cor: "#4CAF7D", icone: "💊" },
+  { id: "pres",  nome: "Presentes",      cor: "#B84FC9", icone: "🎁" },
+  { id: "cabel", nome: "Cabeleireiro",   cor: "#6C5CE7", icone: "💈" },
+  { id: "pelad", nome: "Peladinha",      cor: "#2E8B57", icone: "⚽" },
+  { id: "volei", nome: "Volei",          cor: "#FF8C42", icone: "🏐" },
+];
+// categorias antigas: já não aparecem no registo, mas os gastos antigos continuam a mostrar-se bem
+const CATS_LEGADO = [
+  { id: "casa",  nome: "Casa",   cor: "#8E6CC7", icone: "🏠" },
+  { id: "roupa", nome: "Roupa",  cor: "#5AB8B0", icone: "👕" },
+  { id: "lazer", nome: "Lazer",  cor: "#E86FA6", icone: "🎬" },
+  { id: "outros",nome: "Outros", cor: "#9AA0A8", icone: "📦" },
 ];
 
 let sb = null, sessao = null;
 let dados = { txs: [], invests: [], outras: [] };
 let mes = new Date();
 let vista = "painel"; // painel | invest | dividas
+let vistaLista = "movs"; // movs (predefinida) | cats
+
+function alternarLista(v) { vistaLista = v; render(); }
 
 const eur = n => new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(n);
 const hoje = () => new Date().toISOString().slice(0, 10);
 const esc = s => (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const catDe = id => CATS.find(c => c.id === id) || CATS[CATS.length - 1];
+const catDe = id => CATS.find(c => c.id === id) || CATS_LEGADO.find(c => c.id === id) || CATS_LEGADO[CATS_LEGADO.length - 1];
 
 function toast(txt, erro) {
   const t = document.getElementById("toast");
@@ -325,10 +348,10 @@ function render() {
   const nDiv = dados.txs.filter(t => t.conta === "pais" && !t.reembolsado).length + dados.outras.length;
   document.getElementById("app").innerHTML = `
   <div class="tabs">
-    <button class="${vista === "painel" ? "ativo" : ""}" onclick="mudarVista('painel')">
-      <span class="ic">📊</span>Painel Principal</button>
     <button class="${vista === "invest" ? "ativo" : ""}" onclick="mudarVista('invest')">
       <span class="ic">💶</span>Investimentos</button>
+    <button class="${vista === "painel" ? "ativo" : ""}" onclick="mudarVista('painel')">
+      <span class="ic">📊</span>Painel Principal</button>
     <button class="${vista === "dividas" ? "ativo" : ""}" onclick="mudarVista('dividas')">
       <span class="ic">🤝</span>Dívidas${nDiv ? `<span class="badge">${nDiv}</span>` : ""}</button>
   </div>
@@ -400,20 +423,14 @@ function vistaPainel() {
     </div>
   </div>
 
+  <div class="seletor-lista">
+    <button class="${vistaLista === "movs" ? "sel" : ""}" onclick="alternarLista('movs')">Movimentos</button>
+    <button class="${vistaLista === "cats" ? "sel" : ""}" onclick="alternarLista('cats')">Por categoria</button>
+  </div>
+
   <div class="legenda">
-    ${lista.length === 0 ? `<p class="vazio-msg">Sem gastos este mês.<br>Carrega no − para registar o primeiro.</p>` : ""}
-    ${lista.map(c => `
-      <div class="leg-linha" onclick="abrirDetalhe('${c.id}')">
-        <div class="leg-icone" style="background:${c.cor}">${c.icone}</div>
-        <div class="leg-nome">${c.nome}<small>${c.n} registo${c.n > 1 ? "s" : ""}${c.pais > 0 ? " · pais " + eur(c.pais) : ""}</small></div>
-        <div class="leg-val mono">${eur(c.total)}</div>
-      </div>`).join("")}
-    ${recebido > 0 ? `
-      <div class="leg-linha">
-        <div class="leg-icone" style="background:var(--verde)">💰</div>
-        <div class="leg-nome">Recebido</div>
-        <div class="leg-val mono" style="color:var(--verde)">+${eur(recebido)}</div>
-      </div>` : ""}
+    ${doMes.length === 0 ? `<p class="vazio-msg">Sem movimentos este mês.<br>Carrega no − para registar o primeiro.</p>` : ""}
+    ${vistaLista === "movs" ? listaMovimentos(doMes) : listaCategorias(lista, recebido)}
   </div>
 
   <div class="acoes">
@@ -422,10 +439,51 @@ function vistaPainel() {
   </div>`;
 }
 
+function listaMovimentos(doMes) {
+  const ordenados = [...doMes].sort((a, b) => b.data.localeCompare(a.data) || b.id - a.id);
+  return ordenados.map(t => {
+    if (t.tipo === "receita") {
+      return `
+      <div class="leg-linha">
+        <div class="leg-icone" style="background:var(--verde)">💰</div>
+        <div class="leg-nome">${esc(t.nota || "Entrada")}<small>${t.data.split("-").reverse().slice(0, 2).join("/")} · Recebido</small></div>
+        <div class="leg-val mono" style="color:var(--verde)">+${eur(t.valor)}</div>
+        <button class="editar" onclick="abrirEdicao(${t.id})">✎</button>
+        <button class="apagar" onclick="apagarTx(${t.id})">🗑</button>
+      </div>`;
+    }
+    const c = catDe(t.cat);
+    return `
+    <div class="leg-linha">
+      <div class="leg-icone" style="background:${c.cor}">${c.icone}</div>
+      <div class="leg-nome">${esc(t.nota || c.nome)}<small>${t.data.split("-").reverse().slice(0, 2).join("/")} · ${c.nome}${t.conta === "pais" ? (t.reembolsado ? " · Pais ✓" : " · Pais (a receber)") : ""}</small></div>
+      <div class="leg-val mono">${eur(t.valor)}</div>
+      <button class="editar" onclick="abrirEdicao(${t.id})">✎</button>
+      <button class="apagar" onclick="apagarTx(${t.id})">🗑</button>
+    </div>`;
+  }).join("");
+}
+
+function listaCategorias(lista, recebido) {
+  return `
+  ${lista.map(c => `
+    <div class="leg-linha" onclick="abrirDetalhe('${c.id}')">
+      <div class="leg-icone" style="background:${c.cor}">${c.icone}</div>
+      <div class="leg-nome">${c.nome}<small>${c.n} registo${c.n > 1 ? "s" : ""}${c.pais > 0 ? " · pais " + eur(c.pais) : ""}</small></div>
+      <div class="leg-val mono">${eur(c.total)}</div>
+    </div>`).join("")}
+  ${recebido > 0 ? `
+    <div class="leg-linha">
+      <div class="leg-icone" style="background:var(--verde)">💰</div>
+      <div class="leg-nome">Recebido</div>
+      <div class="leg-val mono" style="color:var(--verde)">+${eur(recebido)}</div>
+    </div>` : ""}`;
+}
+
 // ---------- registo ----------
 let reg = {};
 function abrirRegisto(tipo) {
-  reg = { tipo, pais: false, valor: "", data: hoje(), nota: "" };
+  reg = { tipo, pais: false, valor: "", data: hoje(), nota: "", passo: 1 };
   renderRegisto();
 }
 function fecharRegisto() { document.getElementById("modal").innerHTML = ""; }
@@ -441,24 +499,70 @@ function tecla(k) {
   document.getElementById("r-valor").innerHTML = displayValor();
 }
 function displayValor() { return `${esc(reg.valor) || "0"}<span class="euro"> €</span>`; }
+function guardarCampos() {
+  const n = document.getElementById("r-nota");
+  const d = document.getElementById("r-data");
+  if (n) reg.nota = n.value;
+  if (d) reg.data = d.value || reg.data;
+}
 function alternarPais() {
+  guardarCampos();
   reg.pais = !reg.pais;
-  reg.nota = document.getElementById("r-nota").value;
-  reg.data = document.getElementById("r-data").value || reg.data;
+  renderRegisto();
+}
+function irPasso2() {
+  const v = parseFloat((reg.valor || "").replace(",", "."));
+  if (!v || v <= 0) { toast("Escreve o valor primeiro", true); return; }
+  guardarCampos();
+  reg.passo = 2;
+  renderRegisto();
+}
+function voltarPasso1() { reg.passo = 1; renderRegisto(); }
+function abrirEdicao(id) {
+  const t = dados.txs.find(t => t.id === id);
+  if (!t) return;
+  reg = {
+    tipo: t.tipo,
+    pais: t.conta === "pais",
+    valor: String(t.valor).replace(".", ","),
+    data: t.data,
+    nota: t.nota || "",
+    passo: 1,
+    editId: id,
+  };
   renderRegisto();
 }
 function confirmarRegisto(catId) {
   const v = parseFloat((reg.valor || "").replace(",", "."));
   if (!v || v <= 0) { toast("Escreve o valor primeiro", true); return; }
-  const nota = (document.getElementById("r-nota").value || "").trim();
-  const data = document.getElementById("r-data").value || reg.data;
+  if (reg.passo === 1) guardarCampos();
+
+  if (reg.editId) {
+    const t = dados.txs.find(x => x.id === reg.editId);
+    if (t) {
+      const continuaPais = reg.tipo === "gasto" && reg.pais && t.conta === "pais";
+      t.tipo = reg.tipo;
+      t.conta = reg.tipo === "gasto" && reg.pais ? "pais" : "minha";
+      t.valor = v;
+      t.cat = reg.tipo === "gasto" ? catId : null;
+      t.data = reg.data;
+      t.nota = (reg.nota || "").trim();
+      if (!continuaPais) t.reembolsado = false;
+    }
+    gravar();
+    fecharRegisto();
+    render();
+    toast("Registo atualizado");
+    return;
+  }
+
   dados.txs.push({
     id: Date.now(),
     tipo: reg.tipo,
     conta: reg.tipo === "gasto" && reg.pais ? "pais" : "minha",
     valor: v,
     cat: reg.tipo === "gasto" ? catId : null,
-    data, nota,
+    data: reg.data, nota: (reg.nota || "").trim(),
     reembolsado: false,
   });
   gravar();
@@ -470,14 +574,43 @@ function confirmarRegisto(catId) {
 }
 function renderRegisto() {
   const g = reg.tipo === "gasto";
+
+  // Passo 2 (só gastos): escolher a categoria
+  if (g && reg.passo === 2) {
+    document.getElementById("modal").innerHTML = `
+    <div class="veu" onclick="if(event.target===this)fecharRegisto()">
+      <div class="folha">
+        <div class="folha-topo">
+          <button class="voltar-passo" onclick="voltarPasso1()">‹ Voltar</button>
+          <button class="fechar" onclick="fecharRegisto()">✕</button>
+        </div>
+        <div class="resumo-passo2">
+          <p class="rv mono">${esc(reg.valor) || "0"}<span class="euro" style="font-size:20px;color:var(--cinza)"> €</span></p>
+          ${reg.nota.trim() ? `<p class="rn">${esc(reg.nota.trim())}</p>` : ""}
+          ${reg.pais ? `<p class="rp">Pago pelos Pais — fica a receber</p>` : ""}
+        </div>
+        <p class="dica">Escolhe a categoria para guardar:</p>
+        <div class="grelha-cats">
+          ${CATS.map(c => `
+            <button onclick="confirmarRegisto('${c.id}')">
+              <span class="cat-bola" style="background:${c.cor}">${c.icone}</span>${c.nome}
+            </button>`).join("")}
+        </div>
+      </div>
+    </div>`;
+    return;
+  }
+
+  // Passo 1: valor, descrição em destaque, opções
   document.getElementById("modal").innerHTML = `
   <div class="veu" onclick="if(event.target===this)fecharRegisto()">
     <div class="folha">
       <div class="folha-topo">
-        <span class="tit" style="color:${g ? "var(--vermelho)" : "var(--verde)"}">${g ? "Gasto" : "Entrada"}</span>
+        <span class="tit" style="color:${g ? "var(--vermelho)" : "var(--verde)"}">${reg.editId ? "Editar " : ""}${g ? "Gasto" : "Entrada"}</span>
         <button class="fechar" onclick="fecharRegisto()">✕</button>
       </div>
       <div class="display-valor mono" id="r-valor">${displayValor()}</div>
+      <input class="nota-input" id="r-nota" type="text" placeholder="Descrição" value="${esc(reg.nota)}">
       ${g ? `
       <div class="toggle-pais" onclick="alternarPais()">
         <span class="txt">Pago pelos Pais (Reembolsável)<small>Sai do teu saldo agora, fica a receber deles</small></span>
@@ -486,20 +619,13 @@ function renderRegisto() {
       <div class="linha-opcoes">
         <div class="chip"><input type="date" id="r-data" value="${reg.data}"></div>
       </div>
-      <input class="nota-input" id="r-nota" type="text" placeholder="Descrição (opcional)" value="${esc(reg.nota)}">
       <div class="teclado">
         ${["1","2","3","4","5","6","7","8","9",",","0","⌫"].map(k =>
           `<button onclick="tecla('${k}')">${k}</button>`).join("")}
       </div>
-      ${g ? `
-      <p class="dica">Toca na categoria para guardar:</p>
-      <div class="grelha-cats">
-        ${CATS.map(c => `
-          <button onclick="confirmarRegisto('${c.id}')">
-            <span class="cat-bola" style="background:${c.cor}">${c.icone}</span>${c.nome}
-          </button>`).join("")}
-      </div>` : `
-      <button class="botao-verde" onclick="confirmarRegisto(null)">Guardar entrada</button>`}
+      ${g
+        ? `<button class="botao-verde" style="background:var(--tinta)" onclick="irPasso2()">Continuar — escolher categoria ›</button>`
+        : `<button class="botao-verde" onclick="confirmarRegisto(null)">${reg.editId ? "Guardar alterações" : "Guardar entrada"}</button>`}
     </div>
   </div>`;
 }
@@ -524,6 +650,7 @@ function abrirDetalhe(catId) {
             <p>${t.data.split("-").reverse().join("/")}${t.conta === "pais" ? " · Pais" + (t.reembolsado ? " ✓" : " (a receber)") : ""}</p>
           </div>
           <span class="mono">${eur(t.valor)}</span>
+          <button class="editar" onclick="abrirEdicao(${t.id})">✎</button>
           <button class="apagar" onclick="apagarTx(${t.id})">🗑</button>
         </div>`).join("")}
     </div>
@@ -559,32 +686,54 @@ function vistaDividas() {
           <div class="leg-icone" style="background:${c.cor}">${c.icone}</div>
           <div class="info">
             <p>${esc(t.nota || c.nome)}</p>
-            <p>${t.data.split("-").reverse().join("/")}</p>
+            <p>registada a ${t.data.split("-").reverse().join("/")}</p>
           </div>
           <span class="mono" style="color:var(--laranja)">${eur(t.valor)}</span>
+          <button class="editar" onclick="abrirEdicao(${t.id})">✎</button>
           <button class="apagar" onclick="apagarTx(${t.id})">🗑</button>
         </div>`;
       }).join("")}
 
     <p class="sec-titulo">Outras dívidas</p>
     <div class="form-inline">
+      <input id="d-quem" type="text" placeholder="Quem">
+      <input id="d-desc" type="text" placeholder="Motivo da dívida">
       <div class="lado-a-lado">
-        <input id="d-quem" type="text" placeholder="Quem / o quê">
-        <input id="d-valor" type="text" inputmode="decimal" placeholder="Valor €" style="max-width:110px">
+        <input id="d-valor" type="text" inputmode="decimal" placeholder="Valor €">
       </div>
       <button class="botao-verde" style="padding:11px" onclick="novaOutraDivida()">Adicionar dívida</button>
     </div>
-    ${dados.outras.map(d => `
+    ${gruposOutras()}
+  </div>`;
+}
+function gruposOutras() {
+  if (dados.outras.length === 0) return "";
+  const grupos = {};
+  dados.outras.forEach(d => {
+    const k = (d.quem || "").trim().toLowerCase();
+    if (!grupos[k]) grupos[k] = { nome: (d.quem || "").trim(), lista: [], total: 0 };
+    grupos[k].lista.push(d);
+    grupos[k].total += d.valor;
+  });
+  return Object.values(grupos)
+    .sort((a, b) => b.total - a.total)
+    .map(g => `
+    <p class="sec-titulo" style="display:flex;justify-content:space-between;align-items:center">
+      <span>${esc(g.nome)}</span>
+      <span class="mono" style="color:var(--laranja);text-transform:none;letter-spacing:0">${eur(g.total)}</span>
+    </p>
+    ${g.lista.sort((a, b) => b.data.localeCompare(a.data)).map(d => `
       <div class="cartao">
         <div class="info">
-          <p>${esc(d.quem)}</p>
-          <p>desde ${d.data.split("-").reverse().join("/")}</p>
+          <p>${esc(d.desc || "Dívida")}</p>
+          <p>registada a ${d.data.split("-").reverse().join("/")}</p>
         </div>
         <span class="mono" style="color:var(--laranja)">${eur(d.valor)}</span>
         <button class="btn-mini" style="background:var(--verde)" onclick="receberOutra(${d.id})">✓ Recebi</button>
+        <button class="editar" onclick="abrirEdicaoOutra(${d.id})">✎</button>
         <button class="apagar" onclick="apagarOutra(${d.id})">🗑</button>
       </div>`).join("")}
-  </div>`;
+  `).join("");
 }
 function confirmarReembolso(total) {
   if (!confirm("Confirmar que os teus pais te pagaram " + eur(total) + "? O valor volta ao teu saldo.")) return;
@@ -599,19 +748,64 @@ function confirmarReembolso(total) {
 }
 function novaOutraDivida() {
   const quem = document.getElementById("d-quem").value.trim();
+  const desc = document.getElementById("d-desc").value.trim();
   const v = parseFloat((document.getElementById("d-valor").value || "").replace(",", "."));
   if (!quem || !v || v <= 0) { toast("Preenche quem e o valor", true); return; }
-  dados.outras.push({ id: Date.now(), quem, valor: v, data: hoje() });
+  dados.outras.push({ id: Date.now(), quem, desc, valor: v, data: hoje() });
   gravar();
   render();
+}
+function abrirEdicaoOutra(id) {
+  const d = dados.outras.find(x => x.id === id);
+  if (!d) return;
+  document.getElementById("modal").innerHTML = `
+  <div class="veu" onclick="if(event.target===this)document.getElementById('modal').innerHTML=''">
+    <div class="folha">
+      <div class="folha-topo">
+        <span class="tit">Editar dívida</span>
+        <button class="fechar" onclick="document.getElementById('modal').innerHTML=''">✕</button>
+      </div>
+      <div class="form-inline" style="box-shadow:none;padding:0">
+        <p class="rotulo-campo">Quem</p>
+        <input id="e-quem" type="text" value="${esc(d.quem)}">
+        <p class="rotulo-campo">Motivo</p>
+        <input id="e-desc" type="text" value="${esc(d.desc || "")}">
+        <div class="lado-a-lado">
+          <div style="flex:1">
+            <p class="rotulo-campo">Valor €</p>
+            <input id="e-valor" type="text" inputmode="decimal" value="${String(d.valor).replace(".", ",")}">
+          </div>
+          <div style="flex:1">
+            <p class="rotulo-campo">Data</p>
+            <input id="e-data" type="date" value="${d.data}">
+          </div>
+        </div>
+        <button class="botao-verde" style="padding:12px;margin-top:4px" onclick="guardarOutraEditada(${d.id})">Guardar alterações</button>
+      </div>
+    </div>
+  </div>`;
+}
+function guardarOutraEditada(id) {
+  const d = dados.outras.find(x => x.id === id);
+  if (!d) return;
+  const quem = document.getElementById("e-quem").value.trim();
+  const desc = document.getElementById("e-desc").value.trim();
+  const v = parseFloat((document.getElementById("e-valor").value || "").replace(",", "."));
+  const data = document.getElementById("e-data").value;
+  if (!quem || !v || v <= 0) { toast("Preenche quem e o valor", true); return; }
+  d.quem = quem; d.desc = desc; d.valor = v;
+  if (data) d.data = data;
+  gravar();
+  render();
+  toast("Dívida atualizada");
 }
 function receberOutra(id) {
   const d = dados.outras.find(d => d.id === id);
   if (!d) return;
-  if (!confirm(esc(d.quem) + " pagou-te " + eur(d.valor) + "?")) return;
+  if (!confirm(d.quem + " pagou-te " + eur(d.valor) + "?")) return;
   dados.txs.push({
     id: Date.now(), tipo: "receita", conta: "minha", valor: d.valor,
-    cat: null, data: hoje(), nota: "Dívida recebida: " + d.quem, reembolsado: false,
+    cat: null, data: hoje(), nota: "Dívida recebida: " + d.quem + (d.desc ? " — " + d.desc : ""), reembolsado: false,
   });
   dados.outras = dados.outras.filter(x => x.id !== id);
   gravar();
@@ -646,7 +840,7 @@ function vistaInvest() {
 
     <p class="sec-titulo">Novo investimento</p>
     <div class="form-inline">
-      <input id="i-desc" type="text" placeholder="Descrição (ex: Depósito Revolut)">
+      <input id="i-desc" type="text" placeholder="Descrição">
       <div class="lado-a-lado">
         <input id="i-valor" type="text" inputmode="decimal" placeholder="Valor €">
         <input id="i-venc" type="date" min="${hoje()}">
@@ -666,6 +860,7 @@ function vistaInvest() {
           <p>vence a ${i.vencimento.split("-").reverse().join("/")} · faltam ${dias} dia${dias !== 1 ? "s" : ""}</p>
         </div>
         <span class="mono" style="color:var(--azul)">${eur(i.valor)}</span>
+        <button class="editar" onclick="abrirEdicaoInvest(${i.id})">✎</button>
         <button class="apagar" onclick="apagarInvest(${i.id})">🗑</button>
       </div>`;
     }).join("")}
@@ -679,13 +874,14 @@ function vistaInvest() {
           <p>venceu a ${i.vencimento.split("-").reverse().join("/")} — devolvido</p>
         </div>
         <span class="mono">${eur(i.valor)}</span>
+        <button class="editar" onclick="abrirEdicaoInvest(${i.id})">✎</button>
         <button class="apagar" onclick="apagarInvest(${i.id})">🗑</button>
       </div>`).join("")}
 
     <p class="sec-titulo">Acertar saldo</p>
     <div class="form-inline">
       <div class="lado-a-lado">
-        <input id="a-valor" type="text" inputmode="decimal" placeholder="Quanto tenho realmente? €">
+        <input id="a-valor" type="text" inputmode="decimal" placeholder="Valor total real €">
       </div>
       <p class="rotulo-campo">Escreve o teu dinheiro total real (conta corrente + investido). A app cria um acerto para bater certo.</p>
       <button class="botao-verde" style="padding:11px;background:var(--tinta)" onclick="acertarSaldo()">Acertar</button>
@@ -705,6 +901,46 @@ function novoInvest() {
   gravar();
   render();
   toast("Investimento registado");
+}
+function abrirEdicaoInvest(id) {
+  const i = dados.invests.find(x => x.id === id);
+  if (!i) return;
+  document.getElementById("modal").innerHTML = `
+  <div class="veu" onclick="if(event.target===this)document.getElementById('modal').innerHTML=''">
+    <div class="folha">
+      <div class="folha-topo">
+        <span class="tit">Editar investimento</span>
+        <button class="fechar" onclick="document.getElementById('modal').innerHTML=''">✕</button>
+      </div>
+      <div class="form-inline" style="box-shadow:none;padding:0">
+        <p class="rotulo-campo">Descrição</p>
+        <input id="ei-desc" type="text" value="${esc(i.desc || "")}">
+        <div class="lado-a-lado">
+          <div style="flex:1">
+            <p class="rotulo-campo">Valor €</p>
+            <input id="ei-valor" type="text" inputmode="decimal" value="${String(i.valor).replace(".", ",")}">
+          </div>
+          <div style="flex:1">
+            <p class="rotulo-campo">Vencimento</p>
+            <input id="ei-venc" type="date" value="${i.vencimento}">
+          </div>
+        </div>
+        <button class="botao-verde" style="padding:12px;margin-top:4px" onclick="guardarInvestEditado(${i.id})">Guardar alterações</button>
+      </div>
+    </div>
+  </div>`;
+}
+function guardarInvestEditado(id) {
+  const i = dados.invests.find(x => x.id === id);
+  if (!i) return;
+  const desc = document.getElementById("ei-desc").value.trim();
+  const v = parseFloat((document.getElementById("ei-valor").value || "").replace(",", "."));
+  const venc = document.getElementById("ei-venc").value;
+  if (!v || v <= 0 || !venc) { toast("Preenche o valor e a data", true); return; }
+  i.desc = desc; i.valor = v; i.vencimento = venc;
+  gravar();
+  render();
+  toast("Investimento atualizado");
 }
 function apagarInvest(id) {
   if (!confirm("Apagar este investimento? (o valor volta à conta corrente)")) return;

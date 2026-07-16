@@ -30,7 +30,7 @@
     position: sticky; top: 0; background: var(--fundo); z-index: 30;
   }
   .tabs button {
-    flex: 1; padding: 12px 4px; border-radius: 12px; font-size: 13px; font-weight: 600;
+    flex: 1; padding: 10px 2px; border-radius: 12px; font-size: 11.5px; font-weight: 600;
     background: #fff; color: var(--cinza); box-shadow: 0 1px 2px rgba(43,45,51,0.05);
     display: flex; flex-direction: column; align-items: center; gap: 2px; position: relative;
   }
@@ -57,6 +57,46 @@
   .donut-centro .rot { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cinza); }
   .donut-centro .val { font-size: 24px; font-weight: 600; margin: 2px 0; }
   .donut-centro .saldo { font-size: 12px; color: var(--cinza); }
+  .donut-centro .saldo-mes { font-size: 17px; font-weight: 700; }
+
+  .pesquisa-input { width: 100%; padding: 11px 14px; border-radius: 12px; background: #fff;
+    border: 1px solid var(--claro); outline: none; font-size: 14px; margin-bottom: 8px; user-select: text; }
+  .pesquisa-input:focus { border-color: var(--tinta); }
+
+  .grafico-card { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(43,45,51,0.07); }
+  .grafico-card svg { width: 100%; height: auto; display: block; }
+  .grafico-legenda { display: flex; justify-content: space-between; font-size: 11px; color: var(--cinza); margin-top: 6px; }
+
+  .check-bola { width: 24px; height: 24px; border-radius: 999px; border: 2px solid var(--claro);
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 13px; }
+  .check-bola.on { background: var(--verde); border-color: var(--verde); }
+
+  .barra-meta { height: 8px; border-radius: 999px; background: var(--claro); overflow: hidden; margin-top: 8px; }
+  .barra-meta div { height: 100%; border-radius: 999px; background: var(--verde); transition: width 0.3s; }
+  .meta-card { background: #fff; border-radius: 14px; padding: 14px 16px; margin-bottom: 8px;
+    box-shadow: 0 1px 2px rgba(43,45,51,0.05); }
+  .meta-card .topo-meta { display: flex; align-items: center; gap: 8px; }
+  .meta-card .topo-meta p { flex: 1; font-size: 15px; font-weight: 500; }
+  .meta-card .sub-meta { font-size: 12px; color: var(--cinza); margin-top: 4px; }
+
+  .aviso-orc { color: var(--vermelho); font-weight: 500; }
+
+  .pessoa-card { background: #fff; border-radius: 14px; margin-bottom: 8px;
+    box-shadow: 0 1px 2px rgba(43,45,51,0.05); overflow: hidden; }
+  .pessoa-topo { display: flex; align-items: center; gap: 10px; padding: 15px 16px; cursor: pointer; }
+  .pessoa-nome { flex: 1; font-size: 16px; font-weight: 600; }
+  .pessoa-nome small { display: block; font-size: 12px; font-weight: 400; color: var(--cinza); margin-top: 1px; }
+  .pessoa-total { font-size: 17px; font-weight: 700; color: var(--laranja); }
+  .chev { color: var(--cinza); font-size: 16px; transition: transform 0.15s; line-height: 1; }
+  .pessoa-card.aberto .chev { transform: rotate(180deg); }
+  .pessoa-corpo { border-top: 1px solid var(--claro); padding: 6px 16px 12px; }
+  .divida-linha { display: flex; align-items: center; gap: 10px; padding: 9px 0;
+    border-bottom: 1px solid var(--fundo); }
+  .divida-linha:last-of-type { border-bottom: none; }
+  .divida-linha .info { flex: 1; min-width: 0; }
+  .divida-linha .info p:first-child { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .divida-linha .info p:last-child { font-size: 11px; color: var(--cinza); }
 
   .stats-split { margin: 10px 16px 4px; background: #fff; border-radius: 14px; padding: 12px 16px;
     box-shadow: 0 1px 2px rgba(43,45,51,0.05); }
@@ -224,27 +264,53 @@ const CATS = [
   { id: "cabel", nome: "Cabeleireiro",   cor: "#6C5CE7", icone: "💈" },
   { id: "pelad", nome: "Peladinha",      cor: "#2E8B57", icone: "⚽" },
   { id: "volei", nome: "Volei",          cor: "#FF8C42", icone: "🏐" },
+  { id: "desp",  nome: "Desporto",       cor: "#7BB342", icone: "🏋️" },
+  { id: "ferias",nome: "Férias",         cor: "#00A8CC", icone: "🏖️" },
+  { id: "outros",nome: "Outro",          cor: "#9AA0A8", icone: "📦" },
 ];
+const CATS_DESPORTO = ["pelad", "volei", "desp"];
 // categorias antigas: já não aparecem no registo, mas os gastos antigos continuam a mostrar-se bem
 const CATS_LEGADO = [
   { id: "casa",  nome: "Casa",   cor: "#8E6CC7", icone: "🏠" },
   { id: "roupa", nome: "Roupa",  cor: "#5AB8B0", icone: "👕" },
   { id: "lazer", nome: "Lazer",  cor: "#E86FA6", icone: "🎬" },
-  { id: "outros",nome: "Outros", cor: "#9AA0A8", icone: "📦" },
 ];
 
 let sb = null, sessao = null;
-let dados = { txs: [], invests: [], outras: [] };
+let dados = { txs: [], invests: [], outras: [], grupos: [], orcamentos: {}, metas: [] };
 let mes = new Date();
 let vista = "painel"; // painel | invest | dividas
 let vistaLista = "movs"; // movs (predefinida) | cats
+let catSel = null;     // fatia selecionada no donut
+let pesquisa = "";     // texto de pesquisa nos movimentos
 
 function alternarLista(v) { vistaLista = v; render(); }
+function selecionarCat(id) { catSel = catSel === id ? null : id; render(); }
+function pesquisar(v) {
+  pesquisa = v;
+  const el = document.getElementById("lista-movs");
+  if (el) el.innerHTML = listaMovimentos();
+}
+
+// deslizar para mudar de mês (só no painel, sem folhas abertas)
+let swX = null, swY = null;
+document.addEventListener("touchstart", e => {
+  swX = e.touches[0].clientX; swY = e.touches[0].clientY;
+}, { passive: true });
+document.addEventListener("touchend", e => {
+  if (swX === null || vista !== "painel" || !sessao) return;
+  const modal = document.getElementById("modal");
+  if (modal && modal.innerHTML.trim()) { swX = null; return; }
+  const dx = e.changedTouches[0].clientX - swX;
+  const dy = Math.abs(e.changedTouches[0].clientY - swY);
+  if (Math.abs(dx) > 70 && dy < 50) mudarMes(dx < 0 ? 1 : -1);
+  swX = null;
+}, { passive: true });
 
 const eur = n => new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(n);
 const hoje = () => new Date().toISOString().slice(0, 10);
 const esc = s => (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const catDe = id => CATS.find(c => c.id === id) || CATS_LEGADO.find(c => c.id === id) || CATS_LEGADO[CATS_LEGADO.length - 1];
+const catDe = id => CATS.find(c => c.id === id) || CATS_LEGADO.find(c => c.id === id) || CATS[CATS.length - 1];
 
 function toast(txt, erro) {
   const t = document.getElementById("toast");
@@ -272,6 +338,9 @@ async function carregarNuvem() {
     dados.txs = data.conteudo.txs || [];
     dados.invests = data.conteudo.invests || [];
     dados.outras = data.conteudo.outras || [];
+    dados.grupos = data.conteudo.grupos || [];
+    dados.orcamentos = data.conteudo.orcamentos || {};
+    dados.metas = data.conteudo.metas || [];
     // migração da lógica antiga: pago -> reembolsado
     dados.txs.forEach(t => {
       if (t.conta === "pais" && t.reembolsado === undefined) t.reembolsado = !!t.pago;
@@ -342,7 +411,7 @@ async function iniciarApp() {
   render();
 }
 function mudarVista(v) { vista = v; render(); }
-function mudarMes(d) { mes = new Date(mes.getFullYear(), mes.getMonth() + d, 1); render(); }
+function mudarMes(d) { mes = new Date(mes.getFullYear(), mes.getMonth() + d, 1); catSel = null; render(); }
 
 function render() {
   const nDiv = dados.txs.filter(t => t.conta === "pais" && !t.reembolsado).length + dados.outras.length;
@@ -351,7 +420,9 @@ function render() {
     <button class="${vista === "invest" ? "ativo" : ""}" onclick="mudarVista('invest')">
       <span class="ic">💶</span>Global</button>
     <button class="${vista === "painel" ? "ativo" : ""}" onclick="mudarVista('painel')">
-      <span class="ic">📊</span>Painel Principal</button>
+      <span class="ic">📊</span>Painel</button>
+    <button class="${vista === "estat" ? "ativo" : ""}" onclick="mudarVista('estat')">
+      <span class="ic">📈</span>Estatísticas</button>
     <button class="${vista === "dividas" ? "ativo" : ""}" onclick="mudarVista('dividas')">
       <span class="ic">🤝</span>Dívidas${nDiv ? `<span class="badge">${nDiv}</span>` : ""}</button>
   </div>
@@ -360,6 +431,7 @@ function render() {
   const corpo = document.getElementById("corpo");
   if (vista === "painel") corpo.innerHTML = vistaPainel();
   else if (vista === "invest") corpo.innerHTML = vistaInvest();
+  else if (vista === "estat") corpo.innerHTML = vistaEstat();
   else corpo.innerHTML = vistaDividas();
 }
 
@@ -381,7 +453,7 @@ function vistaPainel() {
     if (t.conta === "pais") porCat[t.cat].pais += t.valor;
   });
   const lista = Object.entries(porCat)
-    .map(([id, v]) => ({ ...catDe(id), ...v }))
+    .map(([id, v]) => ({ ...catDe(id), id, ...v }))
     .sort((a, b) => b.total - a.total);
 
   const R = 84, C = 2 * Math.PI * R;
@@ -389,10 +461,21 @@ function vistaPainel() {
   const segs = gasto > 0 ? lista.map(c => {
     const frac = c.total / gasto;
     const seg = `<circle cx="100" cy="100" r="${R}" fill="none" stroke="${c.cor}" stroke-width="26"
-      stroke-dasharray="${Math.max(frac * C - 3, 0.5)} ${C}" stroke-dashoffset="${-off * C}"/>`;
+      stroke-dasharray="${Math.max(frac * C - 3, 0.5)} ${C}" stroke-dashoffset="${-off * C}"
+      opacity="${catSel && catSel !== c.id ? 0.25 : 1}" style="cursor:pointer"
+      onclick="selecionarCat('${c.id}')"/>`;
     off += frac;
     return seg;
   }).join("") : `<circle cx="100" cy="100" r="${R}" fill="none" stroke="var(--claro)" stroke-width="26"/>`;
+
+  const sel = catSel ? lista.find(c => c.id === catSel) : null;
+  const centro = sel ? `
+    <p class="rot">${sel.icone} ${sel.nome}</p>
+    <p class="val mono" style="color:${sel.cor}">${eur(sel.total)}</p>
+    <p class="saldo">${Math.round((sel.total / gasto) * 100)}% dos gastos · ${sel.n} registo${sel.n > 1 ? "s" : ""}</p>` : `
+    <p class="rot">Gastei</p>
+    <p class="val mono">${eur(gasto)}</p>
+    <p class="saldo-mes mono" style="color:${saldo < 0 ? "var(--vermelho)" : "var(--verde)"}">Saldo ${eur(saldo)}</p>`;
 
   return `
   <div class="nav-mes">
@@ -404,11 +487,7 @@ function vistaPainel() {
   <div class="zona-donut">
     <div class="donut-wrap">
       <svg viewBox="0 0 200 200">${segs}</svg>
-      <div class="donut-centro">
-        <p class="rot">Gastei</p>
-        <p class="val mono">${eur(gasto)}</p>
-        <p class="saldo mono" style="color:${saldo < 0 ? "var(--vermelho)" : "var(--verde)"}">Saldo do mês ${eur(saldo)}</p>
-      </div>
+      <div class="donut-centro">${centro}</div>
     </div>
   </div>
 
@@ -425,6 +504,10 @@ function vistaPainel() {
       <span class="nome"><span class="bola" style="background:var(--vermelho)"></span>Devem-me</span>
       <span class="num mono" style="color:var(--vermelho)">${eur(aReceberPais() + dados.outras.reduce((s, d) => s + d.valor, 0))} ›</span>
     </div>
+    <div class="linha">
+      <span class="nome"><span class="bola" style="background:var(--verde)"></span>Recebido</span>
+      <span class="num mono" style="color:var(--verde)">+${eur(recebido)}</span>
+    </div>
   </div>
 
   <div class="seletor-lista">
@@ -433,8 +516,11 @@ function vistaPainel() {
   </div>
 
   <div class="legenda">
-    ${doMes.length === 0 ? `<p class="vazio-msg">Sem movimentos este mês.<br>Carrega no − para registar o primeiro.</p>` : ""}
-    ${vistaLista === "movs" ? listaMovimentos(doMes) : listaCategorias(lista, recebido)}
+    ${vistaLista === "movs" ? `
+    <input class="pesquisa-input" type="search" placeholder="🔍 Pesquisar gastos" value="${esc(pesquisa)}" oninput="pesquisar(this.value)">
+    <div id="lista-movs">${listaMovimentos()}</div>` : `
+    ${lista.length === 0 && recebido === 0 ? `<p class="vazio-msg">Sem movimentos este mês.<br>Carrega no − para registar o primeiro.</p>` : ""}
+    ${listaCategorias(lista, recebido)}`}
   </div>
 
   <div class="acoes">
@@ -443,14 +529,34 @@ function vistaPainel() {
   </div>`;
 }
 
-function listaMovimentos(doMes) {
-  const ordenados = [...doMes].sort((a, b) => b.data.localeCompare(a.data) || b.id - a.id);
+function listaMovimentos() {
+  const termo = pesquisa.trim().toLowerCase();
+  let base;
+  if (termo) {
+    // pesquisa em todos os meses, por descrição ou categoria
+    base = dados.txs.filter(t => {
+      const c = t.cat ? catDe(t.cat) : null;
+      return (t.nota || "").toLowerCase().includes(termo)
+        || (c && c.nome.toLowerCase().includes(termo));
+    });
+  } else {
+    const mk = mes.getFullYear() + "-" + String(mes.getMonth() + 1).padStart(2, "0");
+    base = dados.txs.filter(t => t.data.slice(0, 7) === mk);
+  }
+  const ordenados = [...base].sort((a, b) => b.data.localeCompare(a.data) || b.id - a.id).slice(0, 200);
+  if (ordenados.length === 0) {
+    return `<p class="vazio-msg">${termo ? "Nada encontrado para \"" + esc(pesquisa.trim()) + "\"." : "Sem movimentos este mês.<br>Carrega no − para registar o primeiro."}</p>`;
+  }
+  const mostrarAno = !!termo;
   return ordenados.map(t => {
+    const dataFmt = mostrarAno
+      ? t.data.split("-").reverse().join("/")
+      : t.data.split("-").reverse().slice(0, 2).join("/");
     if (t.tipo === "receita") {
       return `
       <div class="leg-linha">
         <div class="leg-icone" style="background:var(--verde)">💰</div>
-        <div class="leg-nome">${esc(t.nota || "Entrada")}<small>${t.data.split("-").reverse().slice(0, 2).join("/")} · Recebido</small></div>
+        <div class="leg-nome">${esc(t.nota || "Entrada")}<small>${dataFmt} · Recebido</small></div>
         <div class="leg-val mono" style="color:var(--verde)">+${eur(t.valor)}</div>
         <button class="editar" onclick="abrirEdicao(${t.id})">✎</button>
         <button class="apagar" onclick="apagarTx(${t.id})">🗑</button>
@@ -460,7 +566,7 @@ function listaMovimentos(doMes) {
     return `
     <div class="leg-linha">
       <div class="leg-icone" style="background:${c.cor}">${c.icone}</div>
-      <div class="leg-nome">${esc(t.nota || c.nome)}<small>${t.data.split("-").reverse().slice(0, 2).join("/")} · ${c.nome}${t.conta === "pais" ? (t.reembolsado ? " · Pais ✓" : " · Pais (a receber)") : ""}</small></div>
+      <div class="leg-nome">${esc(t.nota || c.nome)}<small>${dataFmt} · ${c.nome}${t.conta === "pais" ? (t.reembolsado ? " · Pais ✓" : " · Pais (a receber)") : ""}</small></div>
       <div class="leg-val mono">${eur(t.valor)}</div>
       <button class="editar" onclick="abrirEdicao(${t.id})">✎</button>
       <button class="apagar" onclick="apagarTx(${t.id})">🗑</button>
@@ -470,12 +576,16 @@ function listaMovimentos(doMes) {
 
 function listaCategorias(lista, recebido) {
   return `
-  ${lista.map(c => `
+  ${lista.map(c => {
+    const orc = dados.orcamentos[c.id];
+    const acima = orc && c.total > orc;
+    return `
     <div class="leg-linha" onclick="abrirDetalhe('${c.id}')">
       <div class="leg-icone" style="background:${c.cor}">${c.icone}</div>
-      <div class="leg-nome">${c.nome}<small>${c.n} registo${c.n > 1 ? "s" : ""}${c.pais > 0 ? " · pais " + eur(c.pais) : ""}</small></div>
+      <div class="leg-nome">${c.nome}<small>${c.n} registo${c.n > 1 ? "s" : ""}${c.pais > 0 ? " · pais " + eur(c.pais) : ""}${acima ? ` · <span class="aviso-orc">acima do orçamento (${eur(orc)})</span>` : ""}</small></div>
       <div class="leg-val mono">${eur(c.total)}</div>
-    </div>`).join("")}
+    </div>`;
+  }).join("")}
   ${recebido > 0 ? `
     <div class="leg-linha">
       <div class="leg-icone" style="background:var(--verde)">💰</div>
@@ -487,7 +597,7 @@ function listaCategorias(lista, recebido) {
 // ---------- registo ----------
 let reg = {};
 function abrirRegisto(tipo) {
-  reg = { tipo, pais: false, valor: "", data: hoje(), nota: "", passo: 1 };
+  reg = { tipo, pais: false, dividir: false, valor: "", data: hoje(), nota: "", passo: 1 };
   renderRegisto();
 }
 function fecharRegisto() { document.getElementById("modal").innerHTML = ""; }
@@ -513,6 +623,22 @@ function alternarPais() {
   guardarCampos();
   reg.pais = !reg.pais;
   renderRegisto();
+}
+function alternarDividir() {
+  guardarCampos();
+  reg.dividir = !reg.dividir;
+  renderRegisto();
+}
+function verificarOrcamento(catId, dataStr) {
+  const orc = dados.orcamentos[catId];
+  if (!orc) return null;
+  const mk = dataStr.slice(0, 7);
+  const total = dados.txs.filter(t => t.tipo === "gasto" && t.cat === catId && t.data.slice(0, 7) === mk)
+    .reduce((s, t) => s + t.valor, 0);
+  const c = catDe(catId);
+  if (total > orc) return "⚠️ " + c.nome + ": passaste o orçamento — " + eur(total) + " de " + eur(orc);
+  if (total >= orc * 0.9) return "⚠️ " + c.nome + ": perto do limite — " + eur(total) + " de " + eur(orc);
+  return null;
 }
 function irPasso2() {
   const v = parseFloat((reg.valor || "").replace(",", "."));
@@ -556,12 +682,14 @@ function confirmarRegisto(catId) {
     gravar();
     fecharRegisto();
     render();
-    toast("Registo atualizado");
+    const avisoE = reg.tipo === "gasto" && catId ? verificarOrcamento(catId, reg.data) : null;
+    toast(avisoE || "Registo atualizado", !!avisoE);
     return;
   }
 
+  const novoId = Date.now();
   dados.txs.push({
-    id: Date.now(),
+    id: novoId,
     tipo: reg.tipo,
     conta: reg.tipo === "gasto" && reg.pais ? "pais" : "minha",
     valor: v,
@@ -572,9 +700,91 @@ function confirmarRegisto(catId) {
   gravar();
   fecharRegisto();
   render();
-  toast(reg.tipo === "gasto"
+  const aviso = reg.tipo === "gasto" && catId ? verificarOrcamento(catId, reg.data) : null;
+  if (aviso) toast(aviso, true);
+  else toast(reg.tipo === "gasto"
     ? (reg.pais ? "Registado — a receber dos pais" : "Gasto registado")
     : "Entrada registada");
+  if (reg.tipo === "gasto" && reg.dividir) abrirDivisao(novoId);
+}
+
+// ---------- divisão de despesas ----------
+let divPessoas = [], divTotal = 0;
+function abrirDivisao(txId) {
+  const t = dados.txs.find(x => x.id === txId);
+  if (!t) return;
+  divPessoas = [];
+  divTotal = t.valor;
+  renderDivisao(txId);
+}
+function renderDivisao(txId) {
+  const t = dados.txs.find(x => x.id === txId);
+  if (!t) return;
+  const c = catDe(t.cat);
+  const nomeDespesa = t.nota || c.nome;
+  const n = divPessoas.length;
+  const parte = n > 0 ? Math.round((divTotal / (n + 1)) * 100) / 100 : divTotal;
+  const minhaParte = n > 0 ? Math.round((divTotal - parte * n) * 100) / 100 : divTotal;
+  document.getElementById("modal").innerHTML = `
+  <div class="veu">
+    <div class="folha">
+      <div class="folha-topo">
+        <span class="tit">Dividir: ${esc(nomeDespesa)} — <span class="mono">${eur(divTotal)}</span></span>
+        <button class="fechar" onclick="document.getElementById('modal').innerHTML='';render()">✕</button>
+      </div>
+      <p class="dica">Adiciona as pessoas — o valor divide-se igualmente por todos (tu incluído).</p>
+      <div class="form-inline" style="box-shadow:none;padding:0">
+        <div class="lado-a-lado">
+          <input id="dv-quem" type="text" placeholder="Nome" onkeydown="if(event.key==='Enter')adicionarPessoaDiv(${txId})">
+          <button class="botao-verde" style="padding:11px;flex:0 0 auto;width:auto;padding-left:16px;padding-right:16px" onclick="adicionarPessoaDiv(${txId})">Adicionar</button>
+        </div>
+      </div>
+      ${divPessoas.map((p, i) => `
+        <div class="cartao">
+          <div class="info"><p>${esc(p)}</p><p>deve-te a parte dele</p></div>
+          <span class="mono" style="color:var(--laranja)">${eur(parte)}</span>
+          <button class="apagar" onclick="removerPessoaDiv(${i},${txId})">🗑</button>
+        </div>`).join("")}
+      ${n > 0 ? `
+      <div class="cartao" style="background:var(--fundo);box-shadow:none">
+        <div class="info"><p>Tu</p><p>a tua parte (fica nos teus gastos)</p></div>
+        <span class="mono" style="font-weight:600">${eur(minhaParte)}</span>
+      </div>
+      <p class="dica" style="margin-top:6px">${n + 1} pessoas · ${eur(parte)} cada</p>` : ""}
+      <button class="botao-verde" style="background:var(--tinta);margin-top:8px" onclick="concluirDivisao(${txId})">${n > 0 ? "Concluído — dividir" : "Não dividir"}</button>
+    </div>
+  </div>`;
+}
+function adicionarPessoaDiv(txId) {
+  const quem = document.getElementById("dv-quem").value.trim();
+  if (!quem) { toast("Escreve o nome", true); return; }
+  divPessoas.push(quem);
+  renderDivisao(txId);
+}
+function removerPessoaDiv(i, txId) {
+  divPessoas.splice(i, 1);
+  renderDivisao(txId);
+}
+function concluirDivisao(txId) {
+  const t = dados.txs.find(x => x.id === txId);
+  if (!t) { document.getElementById("modal").innerHTML = ""; render(); return; }
+  const n = divPessoas.length;
+  if (n === 0) { document.getElementById("modal").innerHTML = ""; render(); return; }
+  const c = catDe(t.cat);
+  const parte = Math.round((divTotal / (n + 1)) * 100) / 100;
+  const minhaParte = Math.round((divTotal - parte * n) * 100) / 100;
+  t.valor = minhaParte; // nos teus gastos fica só a tua parte
+  divPessoas.forEach((quem, i) => {
+    dados.outras.push({
+      id: Date.now() + i, quem,
+      desc: "Parte de: " + (t.nota || c.nome),
+      valor: parte, data: hoje(), origemTx: txId,
+    });
+  });
+  gravar();
+  document.getElementById("modal").innerHTML = "";
+  render();
+  toast("Dividido — a tua parte: " + eur(minhaParte));
 }
 function renderRegisto() {
   const g = reg.tipo === "gasto";
@@ -619,6 +829,10 @@ function renderRegisto() {
       <div class="toggle-pais" onclick="alternarPais()">
         <span class="txt">Pago pelos Pais (Reembolsável)<small>Sai do teu saldo agora, fica a receber deles</small></span>
         <span class="switch ${reg.pais ? "on" : ""}"></span>
+      </div>
+      <div class="toggle-pais" onclick="alternarDividir()">
+        <span class="txt">Dividir com outros<small>Divide em partes iguais — só a tua parte fica nos gastos</small></span>
+        <span class="switch ${reg.dividir ? "on" : ""}"></span>
       </div>` : ""}
       <div class="linha-opcoes">
         <div class="chip"><input type="date" id="r-data" value="${reg.data}"></div>
@@ -668,37 +882,34 @@ function apagarTx(id) {
 }
 
 // ---------- dívidas e reembolsos ----------
+let pessoasAbertas = {};
+function togglePessoa(k) { pessoasAbertas[k] = !pessoasAbertas[k]; render(); }
+
 function vistaDividas() {
-  const pendentes = dados.txs.filter(t => t.conta === "pais" && !t.reembolsado)
+  const pendentesPais = dados.txs.filter(t => t.conta === "pais" && !t.reembolsado)
     .sort((a, b) => b.data.localeCompare(a.data));
-  const total = pendentes.reduce((s, t) => s + t.valor, 0);
+  const totalPais = pendentesPais.reduce((s, t) => s + t.valor, 0);
+  const totalOutras = dados.outras.reduce((s, d) => s + d.valor, 0);
+  const totalGeral = totalPais + totalOutras;
+
+  // agrupar outras dívidas por pessoa
+  const grupos = {};
+  dados.outras.forEach(d => {
+    const k = (d.quem || "").trim().toLowerCase();
+    if (!grupos[k]) grupos[k] = { nome: (d.quem || "").trim(), lista: [], total: 0 };
+    grupos[k].lista.push(d);
+    grupos[k].total += d.valor;
+  });
+  const pessoas = Object.entries(grupos).sort((a, b) => b[1].total - a[1].total);
+
   return `
   <div class="pagina">
     <div class="destaque">
-      <p class="rot">Os teus pais devem-te</p>
-      <p class="val mono" style="color:var(--laranja)">${eur(total)}</p>
-      <p class="sub">${pendentes.length} gasto${pendentes.length !== 1 ? "s" : ""} por reembolsar</p>
+      <p class="rot">Devem-me no total</p>
+      <p class="val mono" style="color:var(--laranja)">${eur(totalGeral)}</p>
+      <p class="sub">${pessoas.length + (pendentesPais.length ? 1 : 0)} pessoa${(pessoas.length + (pendentesPais.length ? 1 : 0)) !== 1 ? "s" : ""}</p>
     </div>
-    <button class="botao-grande" style="background:var(--verde)" ${total <= 0 ? "disabled" : ""}
-      onclick="confirmarReembolso(${total})">✓ Confirmar Reembolso dos Pais (${eur(total)})</button>
 
-    ${pendentes.length === 0 ? `<p class="vazio-msg">Nada por reembolsar.<br>Gastos com o toggle "Pago pelos Pais" aparecem aqui.</p>` :
-      pendentes.map(t => {
-        const c = catDe(t.cat);
-        return `
-        <div class="cartao">
-          <div class="leg-icone" style="background:${c.cor}">${c.icone}</div>
-          <div class="info">
-            <p>${esc(t.nota || c.nome)}</p>
-            <p>registada a ${t.data.split("-").reverse().join("/")}</p>
-          </div>
-          <span class="mono" style="color:var(--laranja)">${eur(t.valor)}</span>
-          <button class="editar" onclick="abrirEdicao(${t.id})">✎</button>
-          <button class="apagar" onclick="apagarTx(${t.id})">🗑</button>
-        </div>`;
-      }).join("")}
-
-    <p class="sec-titulo">Outras dívidas</p>
     <div class="form-inline">
       <input id="d-quem" type="text" placeholder="Quem">
       <input id="d-desc" type="text" placeholder="Motivo da dívida">
@@ -707,37 +918,78 @@ function vistaDividas() {
       </div>
       <button class="botao-verde" style="padding:11px" onclick="novaOutraDivida()">Adicionar dívida</button>
     </div>
-    ${gruposOutras()}
+
+    ${totalGeral === 0 ? `<p class="vazio-msg">Ninguém te deve nada 👌</p>` : ""}
+
+    ${pendentesPais.length ? `
+    <div class="pessoa-card ${pessoasAbertas["__pais"] ? "aberto" : ""}">
+      <div class="pessoa-topo" onclick="togglePessoa('__pais')">
+        <div class="pessoa-nome">Pais<small>${pendentesPais.length} dívida${pendentesPais.length !== 1 ? "s" : ""}</small></div>
+        <span class="mono pessoa-total">${eur(totalPais)}</span>
+        <span class="chev">⌄</span>
+      </div>
+      ${pessoasAbertas["__pais"] ? `
+      <div class="pessoa-corpo">
+        ${pendentesPais.map(t => {
+          const c = catDe(t.cat);
+          return `
+          <div class="divida-linha">
+            <div class="leg-icone" style="background:${c.cor};width:30px;height:30px;font-size:14px">${c.icone}</div>
+            <div class="info">
+              <p>${esc(t.nota || c.nome)}</p>
+              <p>registada a ${t.data.split("-").reverse().join("/")}</p>
+            </div>
+            <span class="mono" style="color:var(--laranja)">${eur(t.valor)}</span>
+            <button class="editar" onclick="abrirEdicao(${t.id})">✎</button>
+            <button class="apagar" onclick="apagarTx(${t.id})">🗑</button>
+          </div>`;
+        }).join("")}
+        <button class="botao-grande" style="background:var(--verde);margin:10px 0 4px"
+          onclick="confirmarReembolso(${totalPais})">✓ Confirmar Reembolso dos Pais (${eur(totalPais)})</button>
+      </div>` : ""}
+    </div>` : ""}
+
+    ${pessoas.map(([k, g]) => `
+    <div class="pessoa-card ${pessoasAbertas[k] ? "aberto" : ""}">
+      <div class="pessoa-topo" onclick="togglePessoa('${esc(k).replace(/'/g, "\\'")}')">
+        <div class="pessoa-nome">${esc(g.nome)}<small>${g.lista.length} dívida${g.lista.length !== 1 ? "s" : ""}</small></div>
+        <span class="mono pessoa-total">${eur(g.total)}</span>
+        <span class="chev">⌄</span>
+      </div>
+      ${pessoasAbertas[k] ? `
+      <div class="pessoa-corpo">
+        ${g.lista.sort((a, b) => b.data.localeCompare(a.data)).map(d => `
+          <div class="divida-linha">
+            <div class="info">
+              <p>${esc(d.desc || "Dívida")}</p>
+              <p>registada a ${d.data.split("-").reverse().join("/")}</p>
+            </div>
+            <span class="mono" style="color:var(--laranja)">${eur(d.valor)}</span>
+            <button class="btn-mini" style="background:var(--verde)" onclick="receberOutra(${d.id})">✓</button>
+            <button class="editar" onclick="abrirEdicaoOutra(${d.id})">✎</button>
+            <button class="apagar" onclick="apagarOutra(${d.id})">🗑</button>
+          </div>`).join("")}
+        ${g.lista.length > 1 ? `
+        <button class="botao-grande" style="background:var(--verde);margin:10px 0 4px"
+          onclick="receberTudoPessoa('${esc(k).replace(/'/g, "\\'")}')">✓ Recebi tudo de ${esc(g.nome)} (${eur(g.total)})</button>` : ""}
+      </div>` : ""}
+    </div>`).join("")}
   </div>`;
 }
-function gruposOutras() {
-  if (dados.outras.length === 0) return "";
-  const grupos = {};
-  dados.outras.forEach(d => {
-    const k = (d.quem || "").trim().toLowerCase();
-    if (!grupos[k]) grupos[k] = { nome: (d.quem || "").trim(), lista: [], total: 0 };
-    grupos[k].lista.push(d);
-    grupos[k].total += d.valor;
+function receberTudoPessoa(k) {
+  const lista = dados.outras.filter(d => (d.quem || "").trim().toLowerCase() === k);
+  if (!lista.length) return;
+  const nome = lista[0].quem.trim();
+  const total = lista.reduce((s, d) => s + d.valor, 0);
+  if (!confirm(nome + " pagou-te tudo (" + eur(total) + ")?")) return;
+  dados.txs.push({
+    id: Date.now(), tipo: "receita", conta: "minha", valor: total,
+    cat: null, data: hoje(), nota: "Dívidas recebidas: " + nome, reembolsado: false,
   });
-  return Object.values(grupos)
-    .sort((a, b) => b.total - a.total)
-    .map(g => `
-    <p class="sec-titulo" style="display:flex;justify-content:space-between;align-items:center">
-      <span>${esc(g.nome)}</span>
-      <span class="mono" style="color:var(--laranja);text-transform:none;letter-spacing:0">${eur(g.total)}</span>
-    </p>
-    ${g.lista.sort((a, b) => b.data.localeCompare(a.data)).map(d => `
-      <div class="cartao">
-        <div class="info">
-          <p>${esc(d.desc || "Dívida")}</p>
-          <p>registada a ${d.data.split("-").reverse().join("/")}</p>
-        </div>
-        <span class="mono" style="color:var(--laranja)">${eur(d.valor)}</span>
-        <button class="btn-mini" style="background:var(--verde)" onclick="receberOutra(${d.id})">✓ Recebi</button>
-        <button class="editar" onclick="abrirEdicaoOutra(${d.id})">✎</button>
-        <button class="apagar" onclick="apagarOutra(${d.id})">🗑</button>
-      </div>`).join("")}
-  `).join("");
+  dados.outras = dados.outras.filter(d => (d.quem || "").trim().toLowerCase() !== k);
+  gravar();
+  render();
+  toast("Recebido — entrou no saldo");
 }
 function confirmarReembolso(total) {
   if (!confirm("Confirmar que os teus pais te pagaram " + eur(total) + "? O valor volta ao teu saldo.")) return;
@@ -841,6 +1093,57 @@ function vistaInvest() {
         <p class="sub">retido a prazo</p>
       </div>
     </div>
+
+    <p class="sec-titulo">Metas de poupança</p>
+    <div class="form-inline">
+      <input id="m-nome" type="text" placeholder="Nome da meta">
+      <div class="lado-a-lado">
+        <input id="m-valor" type="text" inputmode="decimal" placeholder="Objetivo €">
+        <input id="m-prazo" type="date" min="${hoje()}">
+      </div>
+      <button class="botao-verde" style="padding:11px" onclick="criarMeta()">Criar meta</button>
+    </div>
+    ${dados.metas.map(m => {
+      const prog = Math.max(saldoTotal() - m.base, 0);
+      const pct = Math.min((prog / m.valor) * 100, 100);
+      const feita = prog >= m.valor;
+      return `
+      <div class="meta-card">
+        <div class="topo-meta">
+          <p>${feita ? "🏆" : "🎯"} ${esc(m.nome)}</p>
+          <button class="editar" onclick="abrirEdicaoMeta(${m.id})">✎</button>
+          <button class="apagar" onclick="apagarMeta(${m.id})">🗑</button>
+        </div>
+        <div class="barra-meta"><div style="width:${pct}%${feita ? ";background:var(--laranja)" : ""}"></div></div>
+        <p class="sub-meta">
+          <span class="mono">${eur(prog)}</span> de <span class="mono">${eur(m.valor)}</span> (${Math.round(pct)}%)
+          ${m.prazo ? " · até " + m.prazo.split("-").reverse().join("/") : ""}
+          ${feita ? " · conseguiste! 🎉" : ""}
+        </p>
+      </div>`;
+    }).join("")}
+
+    <p class="sec-titulo">Grupos de despesas</p>
+    <div class="form-inline">
+      <div class="lado-a-lado">
+        <input id="g-nome" type="text" placeholder="Nome do grupo">
+      </div>
+      <button class="botao-verde" style="padding:11px" onclick="criarGrupo()">Criar grupo</button>
+    </div>
+    ${dados.grupos.map(g => {
+      const membros = dados.txs.filter(t => g.txIds.includes(t.id));
+      const total = membros.reduce((s, t) => s + t.valor, 0);
+      return `
+      <div class="cartao" onclick="abrirGrupo(${g.id})" style="cursor:pointer">
+        <div class="leg-icone" style="background:var(--tinta)">📁</div>
+        <div class="info">
+          <p>${esc(g.nome)}</p>
+          <p>${membros.length} despesa${membros.length !== 1 ? "s" : ""}</p>
+        </div>
+        <span class="mono" style="font-weight:600">${eur(total)}</span>
+        <button class="apagar" onclick="event.stopPropagation();apagarGrupo(${g.id})">🗑</button>
+      </div>`;
+    }).join("")}
 
     <p class="sec-titulo">Novo investimento</p>
     <div class="form-inline">
@@ -970,6 +1273,370 @@ function acertarSaldo() {
   gravar();
   render();
   toast("Saldo acertado para " + eur(v));
+}
+
+// ---------- gráfico de evolução do saldo ----------
+function graficoSaldo() {
+  const porMes = {};
+  dados.txs.forEach(t => {
+    const k = t.data.slice(0, 7);
+    porMes[k] = (porMes[k] || 0) + (t.tipo === "receita" ? t.valor : -t.valor);
+  });
+  const chaves = Object.keys(porMes).sort();
+  if (chaves.length === 0) return `<div class="grafico-card"><p class="vazio-msg" style="padding:12px 0">Ainda sem dados para o gráfico.</p></div>`;
+  let acc = 0;
+  const serie = chaves.map(k => { acc += porMes[k]; return { k, v: acc }; }).slice(-12);
+
+  const W = 320, H = 110, P = 8;
+  const vals = serie.map(p => p.v);
+  const min = Math.min(...vals, 0), max = Math.max(...vals, 0);
+  const amp = (max - min) || 1;
+  const px = i => serie.length === 1 ? W / 2 : P + i * ((W - 2 * P) / (serie.length - 1));
+  const py = v => P + (H - 2 * P) * (1 - (v - min) / amp);
+  const pontos = serie.map((p, i) => `${px(i)},${py(p.v)}`).join(" ");
+  const zeroY = py(0);
+  const fmtMes = k => { const [a, m] = k.split("-"); return MESES[+m - 1].slice(0, 3) + " " + a.slice(2); };
+  const ultimo = serie[serie.length - 1];
+
+  return `
+  <div class="grafico-card">
+    <svg viewBox="0 0 ${W} ${H + 10}">
+      ${min < 0 ? `<line x1="${P}" y1="${zeroY}" x2="${W - P}" y2="${zeroY}" stroke="var(--claro)" stroke-dasharray="3 3"/>` : ""}
+      <polyline points="${pontos}" fill="none" stroke="var(--verde)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      ${serie.map((p, i) => `<circle cx="${px(i)}" cy="${py(p.v)}" r="3" fill="${p.v < 0 ? "var(--vermelho)" : "var(--verde)"}"/>`).join("")}
+    </svg>
+    <div class="grafico-legenda">
+      <span>${fmtMes(serie[0].k)}</span>
+      <span class="mono" style="font-weight:600;color:${ultimo.v < 0 ? "var(--vermelho)" : "var(--verde)"}">${eur(ultimo.v)}</span>
+      <span>${fmtMes(ultimo.k)}</span>
+    </div>
+  </div>`;
+}
+
+// ---------- metas de poupança ----------
+function criarMeta() {
+  const nome = document.getElementById("m-nome").value.trim();
+  const v = parseFloat((document.getElementById("m-valor").value || "").replace(",", "."));
+  const prazo = document.getElementById("m-prazo").value || null;
+  if (!nome || !v || v <= 0) { toast("Preenche o nome e o objetivo", true); return; }
+  dados.metas.push({ id: Date.now(), nome, valor: v, prazo, base: saldoTotal(), criado: hoje() });
+  gravar();
+  render();
+  toast("Meta criada — o progresso conta a partir de agora");
+}
+function apagarMeta(id) {
+  if (!confirm("Apagar esta meta?")) return;
+  dados.metas = dados.metas.filter(m => m.id !== id);
+  gravar();
+  render();
+}
+function abrirEdicaoMeta(id) {
+  const m = dados.metas.find(x => x.id === id);
+  if (!m) return;
+  document.getElementById("modal").innerHTML = `
+  <div class="veu" onclick="if(event.target===this)document.getElementById('modal').innerHTML=''">
+    <div class="folha">
+      <div class="folha-topo">
+        <span class="tit">Editar meta</span>
+        <button class="fechar" onclick="document.getElementById('modal').innerHTML=''">✕</button>
+      </div>
+      <div class="form-inline" style="box-shadow:none;padding:0">
+        <p class="rotulo-campo">Nome</p>
+        <input id="em-nome" type="text" value="${esc(m.nome)}">
+        <div class="lado-a-lado">
+          <div style="flex:1">
+            <p class="rotulo-campo">Objetivo €</p>
+            <input id="em-valor" type="text" inputmode="decimal" value="${String(m.valor).replace(".", ",")}">
+          </div>
+          <div style="flex:1">
+            <p class="rotulo-campo">Prazo</p>
+            <input id="em-prazo" type="date" value="${m.prazo || ""}">
+          </div>
+        </div>
+        <button class="botao-verde" style="padding:12px;margin-top:4px" onclick="guardarMetaEditada(${m.id})">Guardar alterações</button>
+      </div>
+    </div>
+  </div>`;
+}
+function guardarMetaEditada(id) {
+  const m = dados.metas.find(x => x.id === id);
+  if (!m) return;
+  const nome = document.getElementById("em-nome").value.trim();
+  const v = parseFloat((document.getElementById("em-valor").value || "").replace(",", "."));
+  const prazo = document.getElementById("em-prazo").value || null;
+  if (!nome || !v || v <= 0) { toast("Preenche o nome e o objetivo", true); return; }
+  m.nome = nome; m.valor = v; m.prazo = prazo;
+  gravar();
+  render();
+  toast("Meta atualizada");
+}
+
+// ---------- estatísticas anuais ----------
+let anoStats = new Date().getFullYear();
+function mudarAno(d) { anoStats += d; render(); }
+function estatisticasAno() {
+  const doAno = dados.txs.filter(t => t.data.slice(0, 4) == anoStats);
+  const gasto = doAno.filter(t => t.tipo === "gasto").reduce((s, t) => s + t.valor, 0);
+  const recebido = doAno.filter(t => t.tipo === "receita").reduce((s, t) => s + t.valor, 0);
+  const saldo = recebido - gasto;
+
+  const porCat = {};
+  doAno.filter(t => t.tipo === "gasto").forEach(t => { porCat[t.cat] = (porCat[t.cat] || 0) + t.valor; });
+  const topCats = Object.entries(porCat)
+    .map(([id, total]) => ({ ...catDe(id), total }))
+    .sort((a, b) => b.total - a.total).slice(0, 5);
+
+  const porMes = {};
+  doAno.forEach(t => {
+    const m = +t.data.slice(5, 7);
+    porMes[m] = (porMes[m] || 0) + (t.tipo === "receita" ? t.valor : -t.valor);
+  });
+  const mesesComDados = Object.entries(porMes);
+  let melhor = null, pior = null;
+  if (mesesComDados.length) {
+    melhor = mesesComDados.reduce((a, b) => b[1] > a[1] ? b : a);
+    pior = mesesComDados.reduce((a, b) => b[1] < a[1] ? b : a);
+  }
+
+  return `
+  <div class="grafico-card">
+    <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:8px">
+      <button class="seta" onclick="mudarAno(-1)">‹</button>
+      <span style="font-weight:600;font-size:16px">${anoStats}</span>
+      <button class="seta" onclick="mudarAno(1)">›</button>
+    </div>
+    ${doAno.length === 0 ? `<p class="vazio-msg" style="padding:8px 0">Sem registos em ${anoStats}.</p>` : `
+    <div class="stats-split" style="margin:0;box-shadow:none;padding:0">
+      <div class="linha"><span class="nome">Gastei</span><span class="num mono" style="color:var(--vermelho)">${eur(gasto)}</span></div>
+      <div class="linha"><span class="nome">Recebi</span><span class="num mono" style="color:var(--verde)">${eur(recebido)}</span></div>
+      <div class="linha"><span class="nome">Saldo do ano</span><span class="num mono" style="color:${saldo < 0 ? "var(--vermelho)" : "var(--verde)"}">${eur(saldo)}</span></div>
+      ${melhor ? `<div class="linha"><span class="nome">Melhor mês</span><span class="num mono">${MESES[melhor[0] - 1]} (${eur(melhor[1])})</span></div>` : ""}
+      ${pior ? `<div class="linha"><span class="nome">Pior mês</span><span class="num mono">${MESES[pior[0] - 1]} (${eur(pior[1])})</span></div>` : ""}
+    </div>
+    ${topCats.length ? `<p class="rotulo-campo" style="margin-top:10px">Onde mais gastaste</p>` : ""}
+    ${topCats.map(c => `
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:14px">
+        <span>${c.icone}</span><span style="flex:1">${c.nome}</span>
+        <span class="mono" style="color:var(--cinza)">${eur(c.total)}</span>
+      </div>`).join("")}`}
+  </div>`;
+}
+
+// ---------- orçamentos ----------
+function abrirOrcamentos() {
+  document.getElementById("modal").innerHTML = `
+  <div class="veu" onclick="if(event.target===this)document.getElementById('modal').innerHTML=''">
+    <div class="folha" style="max-height:88vh">
+      <div class="folha-topo">
+        <span class="tit">Orçamentos mensais</span>
+        <button class="fechar" onclick="document.getElementById('modal').innerHTML=''">✕</button>
+      </div>
+      <p class="dica">Deixa vazio para não teres limite nessa categoria.</p>
+      ${CATS.map(c => `
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 0">
+          <span class="cat-bola" style="background:${c.cor};width:34px;height:34px;font-size:16px">${c.icone}</span>
+          <span style="flex:1;font-size:14px">${c.nome}</span>
+          <input id="orc-${c.id}" type="text" inputmode="decimal" placeholder="—"
+            value="${dados.orcamentos[c.id] ? String(dados.orcamentos[c.id]).replace(".", ",") : ""}"
+            style="width:90px;padding:9px;border-radius:10px;background:var(--fundo);border:none;outline:none;text-align:center;user-select:text">
+        </div>`).join("")}
+      <button class="botao-verde" style="margin-top:10px" onclick="guardarOrcamentos()">Guardar orçamentos</button>
+    </div>
+  </div>`;
+}
+function guardarOrcamentos() {
+  const novos = {};
+  CATS.forEach(c => {
+    const v = parseFloat((document.getElementById("orc-" + c.id).value || "").replace(",", "."));
+    if (v && v > 0) novos[c.id] = v;
+  });
+  dados.orcamentos = novos;
+  gravar();
+  document.getElementById("modal").innerHTML = "";
+  render();
+  toast("Orçamentos guardados");
+}
+
+// ---------- grupos de despesas ----------
+function criarGrupo() {
+  const nome = document.getElementById("g-nome").value.trim();
+  if (!nome) { toast("Escreve o nome do grupo", true); return; }
+  dados.grupos.push({ id: Date.now(), nome, txIds: [] });
+  gravar();
+  render();
+  toast("Grupo criado — toca nele para juntar despesas");
+}
+function apagarGrupo(id) {
+  if (!confirm("Apagar este grupo? (as despesas em si não são apagadas)")) return;
+  dados.grupos = dados.grupos.filter(g => g.id !== id);
+  gravar();
+  render();
+}
+let grupoTmp = [], grupoPesq = "";
+function abrirGrupo(id) {
+  const g = dados.grupos.find(x => x.id === id);
+  if (!g) return;
+  grupoTmp = [...g.txIds];
+  grupoPesq = "";
+  document.getElementById("modal").innerHTML = `
+  <div class="veu">
+    <div class="folha" style="max-height:88vh">
+      <div class="folha-topo">
+        <span class="tit">📁 ${esc(g.nome)} — <span class="mono" id="grupo-total"></span></span>
+        <button class="fechar" onclick="document.getElementById('modal').innerHTML=''">✕</button>
+      </div>
+      <p class="dica">Toca nas despesas para as juntar ou tirar. Só fica guardado quando carregares em Guardar.</p>
+      <input class="pesquisa-input" type="search" placeholder="🔍 Pesquisar despesas"
+        oninput="grupoPesq=this.value;atualizarListaGrupo(${g.id})">
+      <div id="lista-grupo" style="max-height:46vh;overflow-y:auto"></div>
+      <button class="botao-verde" style="margin-top:10px" onclick="guardarGrupo(${g.id})">Guardar grupo</button>
+    </div>
+  </div>`;
+  atualizarListaGrupo(id);
+}
+function listaGrupoHtml() {
+  const termo = grupoPesq.trim().toLowerCase();
+  let gastos = dados.txs.filter(t => t.tipo === "gasto");
+  if (termo) {
+    gastos = gastos.filter(t => {
+      const c = catDe(t.cat);
+      return (t.nota || "").toLowerCase().includes(termo) || c.nome.toLowerCase().includes(termo);
+    });
+  }
+  gastos = gastos.sort((a, b) => b.data.localeCompare(a.data) || b.id - a.id).slice(0, 150);
+  if (gastos.length === 0) return `<p class="vazio-msg">${termo ? "Nada encontrado." : "Ainda não tens despesas registadas."}</p>`;
+  return gastos.map(t => {
+    const c = catDe(t.cat);
+    const dentro = grupoTmp.includes(t.id);
+    return `
+    <div class="leg-linha" onclick="alternarTxGrupo(${t.id})" style="cursor:pointer;${dentro ? "" : "opacity:0.55"}">
+      <span class="check-bola ${dentro ? "on" : ""}">${dentro ? "✓" : ""}</span>
+      <div class="leg-icone" style="background:${c.cor}">${c.icone}</div>
+      <div class="leg-nome">${esc(t.nota || c.nome)}<small>${t.data.split("-").reverse().join("/")} · ${c.nome}</small></div>
+      <div class="leg-val mono">${eur(t.valor)}</div>
+    </div>`;
+  }).join("");
+}
+function atualizarListaGrupo(gId) {
+  const lista = document.getElementById("lista-grupo");
+  if (lista) lista.innerHTML = listaGrupoHtml();
+  const tot = document.getElementById("grupo-total");
+  if (tot) tot.textContent = eur(dados.txs.filter(t => grupoTmp.includes(t.id)).reduce((s, t) => s + t.valor, 0));
+}
+function alternarTxGrupo(txId) {
+  grupoTmp = grupoTmp.includes(txId) ? grupoTmp.filter(i => i !== txId) : [...grupoTmp, txId];
+  // atualizar só a linha e o total, para a lista não saltar
+  atualizarListaGrupo();
+}
+function guardarGrupo(gId) {
+  const g = dados.grupos.find(x => x.id === gId);
+  if (!g) return;
+  g.txIds = [...grupoTmp];
+  gravar();
+  document.getElementById("modal").innerHTML = "";
+  render();
+  toast("Grupo guardado");
+}
+
+// ---------- estatísticas ----------
+function vistaEstat() {
+  const mk = mes.getFullYear() + "-" + String(mes.getMonth() + 1).padStart(2, "0");
+  const dAnt = new Date(mes.getFullYear(), mes.getMonth() - 1, 1);
+  const mkAnt = dAnt.getFullYear() + "-" + String(dAnt.getMonth() + 1).padStart(2, "0");
+  const nomeAnt = MESES[dAnt.getMonth()];
+
+  const doMes = dados.txs.filter(t => t.data.slice(0, 7) === mk);
+  const gasto = doMes.filter(t => t.tipo === "gasto").reduce((s, t) => s + t.valor, 0);
+  const gastoAnt = dados.txs.filter(t => t.tipo === "gasto" && t.data.slice(0, 7) === mkAnt)
+    .reduce((s, t) => s + t.valor, 0);
+  const houveAnt = dados.txs.some(t => t.data.slice(0, 7) === mkAnt);
+  const delta = gasto - gastoAnt;
+  const vezesDesporto = doMes.filter(t => t.tipo === "gasto" && CATS_DESPORTO.includes(t.cat)).length;
+
+  // comparação por categoria: mês atual vs anterior
+  const atualCat = {}, antCat = {};
+  doMes.filter(t => t.tipo === "gasto").forEach(t => { atualCat[t.cat] = (atualCat[t.cat] || 0) + t.valor; });
+  dados.txs.filter(t => t.tipo === "gasto" && t.data.slice(0, 7) === mkAnt)
+    .forEach(t => { antCat[t.cat] = (antCat[t.cat] || 0) + t.valor; });
+  const idsComp = [...new Set([...Object.keys(atualCat), ...Object.keys(antCat)])];
+  const comparacao = idsComp.map(id => ({
+    ...catDe(id), id,
+    atual: atualCat[id] || 0,
+    ant: antCat[id] || 0,
+  })).sort((a, b) => b.atual - a.atual);
+
+  // estado dos orçamentos
+  const comOrcamento = Object.keys(dados.orcamentos).map(id => ({
+    ...catDe(id), id,
+    limite: dados.orcamentos[id],
+    gasto: atualCat[id] || 0,
+  }));
+
+  return `
+  <div class="pagina">
+    <div class="nav-mes" style="margin-bottom:6px">
+      <button class="seta" onclick="mudarMes(-1)">‹</button>
+      <div><h1>${MESES[mes.getMonth()]}</h1><p class="sub">${mes.getFullYear()}</p></div>
+      <button class="seta" onclick="mudarMes(1)">›</button>
+    </div>
+
+    <div class="stats-split" style="margin:0 0 12px">
+      <div class="linha">
+        <span class="nome">📈 Vs. ${nomeAnt}</span>
+        <span class="num mono" style="color:${!houveAnt ? "var(--cinza)" : delta > 0 ? "var(--vermelho)" : "var(--verde)"}">
+          ${!houveAnt ? "—" : (delta > 0 ? "+" : "−") + eur(Math.abs(delta)).replace("€", "").trim() + "€ gastos"}</span>
+      </div>
+      <div class="linha">
+        <span class="nome">⚽ Desporto este mês</span>
+        <span class="num mono">${vezesDesporto} ${vezesDesporto === 1 ? "vez" : "vezes"}</span>
+      </div>
+    </div>
+
+    ${comparacao.length ? `<p class="sec-titulo">Categorias — ${MESES[mes.getMonth()]} vs ${nomeAnt}</p>
+    <div class="grafico-card">
+      ${comparacao.map(c => {
+        const dif = c.atual - c.ant;
+        return `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:14px">
+          <span>${c.icone}</span>
+          <span style="flex:1">${c.nome}</span>
+          <span class="mono" style="color:var(--cinza);font-size:12px">${eur(c.ant)} →</span>
+          <span class="mono" style="min-width:70px;text-align:right">${eur(c.atual)}</span>
+          <span class="mono" style="min-width:76px;text-align:right;font-size:12px;color:${dif > 0 ? "var(--vermelho)" : dif < 0 ? "var(--verde)" : "var(--cinza)"}">${dif === 0 ? "=" : (dif > 0 ? "+" : "−") + eur(Math.abs(dif)).replace("€", "").trim() + "€"}</span>
+        </div>`;
+      }).join("")}
+    </div>` : `<p class="vazio-msg">Sem gastos neste mês para comparar.</p>`}
+
+    <p class="sec-titulo">Orçamentos</p>
+    ${comOrcamento.length === 0 ? "" : `
+    <div class="grafico-card">
+      ${comOrcamento.map(c => {
+        const pct = Math.min((c.gasto / c.limite) * 100, 100);
+        const acima = c.gasto > c.limite;
+        const perto = !acima && c.gasto >= c.limite * 0.9;
+        return `
+        <div style="padding:6px 0">
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px">
+            <span>${c.icone}</span>
+            <span style="flex:1">${c.nome}</span>
+            <span class="mono" style="font-size:12px;color:${acima ? "var(--vermelho)" : perto ? "var(--laranja)" : "var(--cinza)"}">${eur(c.gasto)} de ${eur(c.limite)}</span>
+          </div>
+          <div class="barra-meta" style="margin-top:5px;height:6px">
+            <div style="width:${pct}%;background:${acima ? "var(--vermelho)" : perto ? "var(--laranja)" : "var(--verde)"}"></div>
+          </div>
+        </div>`;
+      }).join("")}
+    </div>`}
+    <div class="form-inline">
+      <button class="botao-verde" style="padding:11px;background:var(--tinta)" onclick="abrirOrcamentos()">Definir orçamentos</button>
+    </div>
+
+    <p class="sec-titulo">Evolução do dinheiro total</p>
+    ${graficoSaldo()}
+
+    <p class="sec-titulo">Estatísticas do ano</p>
+    ${estatisticasAno()}
+  </div>`;
 }
 
 // ---------- arranque ----------

@@ -295,6 +295,7 @@ const CATS_LEGADO = [
 ];
 
 let sb = null, sessao = null;
+let carregouOk = false; // só se grava depois de uma leitura bem-sucedida
 let dados = { txs: [], invests: [], outras: [], grupos: [], orcamentos: {}, metas: [], seg: null, cats: null };
 let mes = new Date();
 let vista = "painel"; // painel | invest | dividas
@@ -386,7 +387,9 @@ const contaCorrente = () => saldoTotal() - totalInvestido();
 // ---------- nuvem ----------
 async function carregarNuvem() {
   const { data, error } = await sb.from("dados").select("conteudo").eq("user_id", sessao.user.id).maybeSingle();
-  if (error) { toast("Erro a carregar da nuvem", true); return; }
+  // Falhou a leitura: NAO marcamos carregouOk. Quem chama mostra o ecra de erro.
+  // Sem isto, o "dados" ficava vazio e a primeira gravacao apagava o histórico todo.
+  if (error) { carregouOk = false; return false; }
   if (data && data.conteudo) {
     dados.txs = data.conteudo.txs || [];
     dados.invests = data.conteudo.invests || [];
@@ -406,14 +409,22 @@ async function carregarNuvem() {
       }
     });
   }
+  carregouOk = true;
   try { localStorage.setItem("contas-cache", JSON.stringify(dados)); } catch {}
+  return true;
 }
 async function gravar() {
+  // Trave de segurança: sem leitura confirmada, o upsert substituiria tudo por nada.
+  if (!carregouOk) {
+    toast("Não gravei nada — os dados não chegaram a carregar. Recarrega a app.", true);
+    return false;
+  }
   try { localStorage.setItem("contas-cache", JSON.stringify(dados)); } catch {}
   const { error } = await sb.from("dados").upsert({
     user_id: sessao.user.id, conteudo: dados, atualizado: new Date().toISOString(),
   });
-  if (error) toast("Sem ligação — tenta outra vez", true);
+  if (error) { toast("Sem ligação — a alteração pode não ter sido guardada", true); return false; }
+  return true;
 }
 
 // ---------- autenticação ----------
@@ -461,15 +472,35 @@ async function sair() {
   if (!confirm("Sair da conta?")) return;
   await sb.auth.signOut();
   sessao = null;
+  carregouOk = false;
   renderLogin("entrar");
 }
 
 // ---------- estrutura ----------
 async function iniciarApp() {
   document.getElementById("app").innerHTML = `<div class="vazio-msg" style="padding-top:45vh">A carregar…</div>`;
-  await carregarNuvem();
+  const ok = await carregarNuvem();
+  if (!ok) { renderFalhaCarregar(); return; }
   sincronizarCats();
   render();
+}
+function renderFalhaCarregar() {
+  let cache = null, quantos = 0;
+  try { cache = localStorage.getItem("contas-cache"); } catch {}
+  try { quantos = (JSON.parse(cache).txs || []).length; } catch {}
+  document.getElementById("app").innerHTML = `
+  <div class="pagina" style="padding-top:12vh;text-align:center">
+    <p style="font-size:42px">📡</p>
+    <h1 style="font-size:20px;font-weight:600;margin:6px 0 8px">Não consegui ler os teus dados</h1>
+    <p class="vazio-msg" style="padding:0 0 18px">
+      Provavelmente é a rede. Não te deixo registar nada agora:<br>gravar por cima apagaria o histórico.
+    </p>
+    <button class="botao-verde" onclick="iniciarApp()">Tentar outra vez</button>
+    ${cache ? `
+    <button class="botao-grande" style="background:var(--tinta);margin-top:10px" onclick="exportarCache()">
+      Guardar a última cópia local (${quantos} movimento${quantos !== 1 ? "s" : ""})</button>` : ""}
+    <p class="rodape-conta">${sessao ? esc(sessao.user.email) : ""} · <button onclick="sair()">Sair</button></p>
+  </div>`;
 }
 function mudarVista(v) {
   if (v !== "invest" && pinDefinido()) valoresVisiveis = false;
@@ -1267,6 +1298,20 @@ function vistaInvest() {
       <button class="botao-verde" style="padding:11px;background:var(--tinta)" onclick="acertarSaldo()">Acertar</button>
     </div>
 
+    <p class="sec-titulo">Cópia de segurança</p>
+    <div class="form-inline">
+      <p class="rotulo-campo">Um ficheiro com tudo: movimentos, dívidas, investimentos, metas, orçamentos e categorias.
+        A nuvem só guarda uma cópia — vale a pena exportares de vez em quando.</p>
+      <button class="botao-verde" style="padding:11px;background:var(--tinta)"
+        onclick="exportarDados()">Exportar cópia (${dados.txs.length} movimentos)</button>
+      <button class="botao-verde" style="padding:11px;margin-top:8px;background:var(--cinza)"
+        onclick="copiarDados()">Copiar JSON</button>
+      <p class="rotulo-campo" style="margin-top:12px">Importar substitui tudo — na app e na nuvem — incluindo o código dos valores.</p>
+      <input type="file" id="ficheiro-import" accept="application/json,.json" style="display:none" onchange="importarFicheiro(this)">
+      <button class="botao-verde" style="padding:11px;background:var(--vermelho)"
+        onclick="abrirImport()">Importar de ficheiro…</button>
+    </div>
+
     <p class="sec-titulo">Categorias</p>
     <div class="form-inline">
       <p class="rotulo-campo">Criar, renomear, mudar cor e ordem. As que já têm movimentos são arquivadas em vez de apagadas, para não estragar o histórico.</p>
@@ -1727,6 +1772,89 @@ function vistaEstat() {
     <p class="sec-titulo">Estatísticas do ano</p>
     ${estatisticasAno()}
   </div>`;
+}
+
+// ---------- cópia de segurança ----------
+const pacoteExport = conteudo => JSON.stringify(
+  { app: "contas", versao: 1, exportado: new Date().toISOString(), conteudo }, null, 2);
+
+function baixarJson(nome, texto) {
+  try {
+    const blob = new Blob([texto], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    return true;
+  } catch (e) { return false; }
+}
+function exportarDados() {
+  if (!baixarJson("contas-" + hoje() + ".json", pacoteExport(dados))) {
+    toast("Não consegui criar o ficheiro", true); return;
+  }
+  toast("Cópia exportada");
+}
+function exportarCache() {
+  let cache = null;
+  try { cache = localStorage.getItem("contas-cache"); } catch {}
+  if (!cache) { toast("Não há cópia local neste telemóvel", true); return; }
+  let obj = null;
+  try { obj = JSON.parse(cache); } catch { toast("A cópia local está corrompida", true); return; }
+  if (!baixarJson("contas-copia-local-" + hoje() + ".json", pacoteExport(obj))) {
+    toast("Não consegui criar o ficheiro", true); return;
+  }
+  toast("Cópia local exportada");
+}
+async function copiarDados() {
+  try {
+    await navigator.clipboard.writeText(pacoteExport(dados));
+    toast("JSON copiado");
+  } catch (e) { toast("O browser não deixou copiar — usa Exportar", true); }
+}
+function abrirImport() {
+  const el = document.getElementById("ficheiro-import");
+  if (el) el.click();
+}
+// só aceita ficheiros com uma lista de movimentos reconhecível
+function limparConteudo(c) {
+  if (!c || !Array.isArray(c.txs)) return null;
+  return {
+    txs: c.txs,
+    invests: Array.isArray(c.invests) ? c.invests : [],
+    outras: Array.isArray(c.outras) ? c.outras : [],
+    grupos: Array.isArray(c.grupos) ? c.grupos : [],
+    orcamentos: (c.orcamentos && typeof c.orcamentos === "object") ? c.orcamentos : {},
+    metas: Array.isArray(c.metas) ? c.metas : [],
+    seg: c.seg || null,
+    cats: Array.isArray(c.cats) ? c.cats : null,
+  };
+}
+function aplicarImport(texto) {
+  let obj = null;
+  try { obj = JSON.parse(texto); } catch (e) { toast("Esse ficheiro não é JSON válido", true); return false; }
+  const novo = limparConteudo(obj && obj.conteudo ? obj.conteudo : obj);
+  if (!novo) { toast("Não encontrei movimentos nesse ficheiro", true); return false; }
+  if (!confirm("Vais substituir os " + dados.txs.length + " movimentos que tens pelos "
+    + novo.txs.length + " do ficheiro. Apaga o que está na app e na nuvem. Continuar?")) return false;
+  dados = novo;
+  sincronizarCats();
+  valoresVisiveis = false;
+  gravar();
+  render();
+  toast("Importado — " + novo.txs.length + " movimentos");
+  return true;
+}
+function importarFicheiro(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  const leitor = new FileReader();
+  leitor.onload = () => { const t = leitor.result; input.value = ""; aplicarImport(t); };
+  leitor.onerror = () => { input.value = ""; toast("Não consegui ler o ficheiro", true); };
+  leitor.readAsText(f);
 }
 
 // ---------- gestor de categorias ----------

@@ -140,6 +140,15 @@
   .dupla .destaque { flex: 1; margin-bottom: 0; padding: 16px 10px; }
   .dupla .destaque .val { font-size: 22px; }
 
+  .btn-olho { width: 100%; padding: 11px; border-radius: 12px; background: #fff; margin-bottom: 12px;
+    box-shadow: 0 1px 2px rgba(43,45,51,0.05); font-size: 13px; font-weight: 600; color: var(--cinza);
+    display: flex; align-items: center; justify-content: center; gap: 7px; }
+  .btn-olho:active { background: var(--claro); }
+  .oculto-val { color: var(--cinza); letter-spacing: 0.08em; }
+  .pin-pontos { text-align: center; font-size: 34px; letter-spacing: 0.22em; padding: 8px 0 2px;
+    min-height: 48px; color: var(--tinta); }
+  .pin-erro { text-align: center; color: var(--vermelho); font-size: 13px; margin-bottom: 4px; }
+
   .botao-grande { width: 100%; padding: 15px; border-radius: 14px; color: #fff; font-size: 16px;
     font-weight: 600; margin-bottom: 14px; box-shadow: 0 3px 10px rgba(76,175,125,0.35); }
   .botao-grande:active { transform: scale(0.99); }
@@ -212,6 +221,11 @@
   .teclado button { padding: 12px 0; font-size: 21px; border-radius: 12px; background: var(--fundo); }
   .teclado button:active { background: var(--claro); }
 
+  .grelha-cores { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-bottom: 8px; }
+  .swatch { height: 30px; border-radius: 8px; border: 2px solid transparent; }
+  .swatch.sel { border-color: var(--tinta); }
+  .cat-linha-btn { color: #C9CED4; padding: 4px 6px; font-size: 15px; flex-shrink: 0; }
+
   .grelha-cats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .grelha-cats button { display: flex; flex-direction: column; align-items: center; gap: 4px;
     padding: 7px 2px; border-radius: 12px; font-size: 10.5px; color: var(--tinta); }
@@ -252,35 +266,40 @@ const SUPABASE_URL = "https://rzwkrtbpoaruahhukagd.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ6d2tydGJwb2FydWFoaHVrYWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5Njk5NTYsImV4cCI6MjA5OTU0NTk1Nn0.Ms7UtMQHxoVcTHp0NWdkFOvVuZQyM97U2Ufijtrf9pc";
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-const CATS = [
+// Lista base: só serve como semente na 1a vez. Depois manda o dados.cats.
+const CATS_BASE = [
   { id: "rest",  nome: "Restaurantes",   cor: "#F0A030", icone: "🍽️" },
   { id: "alim",  nome: "Alimentação",    cor: "#E4574F", icone: "🛒" },
   { id: "entret",nome: "Entretenimento", cor: "#E86FA6", icone: "🍺" },
   { id: "rita",  nome: "Rita",           cor: "#D6456B", icone: "🧡" },
+  { id: "roupa", nome: "Roupa",          cor: "#5AB8B0", icone: "👕" },
   { id: "trans", nome: "Transporte",     cor: "#4A90D9", icone: "🚌" },
   { id: "carro", nome: "Carro",          cor: "#3A6EA5", icone: "🚗" },
   { id: "saude", nome: "Saúde",          cor: "#4CAF7D", icone: "💊" },
   { id: "pres",  nome: "Presentes",      cor: "#B84FC9", icone: "🎁" },
   { id: "cabel", nome: "Cabeleireiro",   cor: "#6C5CE7", icone: "💈" },
-  { id: "pelad", nome: "Peladinha",      cor: "#2E8B57", icone: "⚽" },
-  { id: "volei", nome: "Volei",          cor: "#FF8C42", icone: "🏐" },
-  { id: "desp",  nome: "Desporto",       cor: "#7BB342", icone: "🏋️" },
+  { id: "pelad", nome: "Peladinha",      cor: "#2E8B57", icone: "⚽", desporto: true },
+  { id: "volei", nome: "Volei",          cor: "#FF8C42", icone: "🏐", desporto: true },
+  { id: "desp",  nome: "Desporto",       cor: "#7BB342", icone: "🏋️", desporto: true },
   { id: "ferias",nome: "Férias",         cor: "#00A8CC", icone: "🏖️" },
   { id: "outros",nome: "Outro",          cor: "#9AA0A8", icone: "📦" },
 ];
-const CATS_DESPORTO = ["pelad", "volei", "desp"];
+let CATS = CATS_BASE.map(c => ({ ...c })); // categorias ativas, reconstruidas a partir do dados.cats
+const CAT_DESCONHECIDA = { id: "outros", nome: "Outro", cor: "#9AA0A8", icone: "📦" };
+const CORES_CAT = ["#F0A030","#E4574F","#E86FA6","#D6456B","#5AB8B0","#4A90D9","#3A6EA5","#4CAF7D",
+  "#B84FC9","#6C5CE7","#2E8B57","#FF8C42","#7BB342","#00A8CC","#8E6CC7","#9AA0A8"];
 // categorias antigas: já não aparecem no registo, mas os gastos antigos continuam a mostrar-se bem
 const CATS_LEGADO = [
   { id: "casa",  nome: "Casa",   cor: "#8E6CC7", icone: "🏠" },
-  { id: "roupa", nome: "Roupa",  cor: "#5AB8B0", icone: "👕" },
   { id: "lazer", nome: "Lazer",  cor: "#E86FA6", icone: "🎬" },
 ];
 
 let sb = null, sessao = null;
-let dados = { txs: [], invests: [], outras: [], grupos: [], orcamentos: {}, metas: [] };
+let dados = { txs: [], invests: [], outras: [], grupos: [], orcamentos: {}, metas: [], seg: null, cats: null };
 let mes = new Date();
 let vista = "painel"; // painel | invest | dividas
 let vistaLista = "movs"; // movs (predefinida) | cats
+let valoresVisiveis = false; // conta corrente / investido comecam sempre ocultos
 let catSel = null;     // fatia selecionada no donut
 let pesquisa = "";     // texto de pesquisa nos movimentos
 
@@ -292,25 +311,59 @@ function pesquisar(v) {
   if (el) el.innerHTML = listaMovimentos();
 }
 
-// deslizar para mudar de mês (só no painel, sem folhas abertas)
+// deslizar para trocar de menu (sem folhas abertas)
+const VISTAS = ["invest", "painel", "estat", "dividas"];
 let swX = null, swY = null;
 document.addEventListener("touchstart", e => {
   swX = e.touches[0].clientX; swY = e.touches[0].clientY;
 }, { passive: true });
 document.addEventListener("touchend", e => {
-  if (swX === null || vista !== "painel" || !sessao) return;
+  if (swX === null || !sessao) return;
   const modal = document.getElementById("modal");
   if (modal && modal.innerHTML.trim()) { swX = null; return; }
   const dx = e.changedTouches[0].clientX - swX;
   const dy = Math.abs(e.changedTouches[0].clientY - swY);
-  if (Math.abs(dx) > 70 && dy < 50) mudarMes(dx < 0 ? 1 : -1);
   swX = null;
+  if (Math.abs(dx) < 70 || dy > 50) return;
+  const i = VISTAS.indexOf(vista);
+  const j = i + (dx < 0 ? 1 : -1);
+  if (i < 0 || j < 0 || j >= VISTAS.length) return;
+  mudarVista(VISTAS[j]);
 }, { passive: true });
 
 const eur = n => new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(n);
 const hoje = () => new Date().toISOString().slice(0, 10);
 const esc = s => (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const catDe = id => CATS.find(c => c.id === id) || CATS_LEGADO.find(c => c.id === id) || CATS[CATS.length - 1];
+function sincronizarCats() {
+  if (!Array.isArray(dados.cats) || dados.cats.length === 0) {
+    dados.cats = CATS_BASE.map(c => ({ ...c }));
+  }
+  CATS = dados.cats.filter(c => !c.arquivada);
+}
+// procura em todas (inclui arquivadas) para o historico nunca perder nome/cor
+const catDe = id => (dados.cats && dados.cats.find(c => c.id === id))
+  || CATS_LEGADO.find(c => c.id === id)
+  || CATS_BASE.find(c => c.id === id)
+  || CAT_DESCONHECIDA;
+const catDesporto = id => !!catDe(id).desporto;
+const usosCat = id => dados.txs.filter(t => t.cat === id).length;
+
+// ---------- movimentos "neutros" ----------
+// Um movimento neutro mexe no saldo real mas NUNCA aparece nos gastos/recebidos:
+//   - gastos pagos com dinheiro dos pais  (conta === "pais")
+//   - a parte de uma despesa que é de outra pessoa (parteMinha = a tua parte)
+//   - reembolsos dos pais e dívidas recebidas (neutro === true)
+const ehPais = t => t.tipo === "gasto" && t.conta === "pais";
+// nas dividas, "Pais"/"pais" e "Joao"/"joao" contam como a mesma pessoa
+const chaveNome = n => (n || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const valorVisivel = t => {
+  if (t.neutro) return 0;
+  if (ehPais(t)) return 0;
+  if (t.tipo === "gasto" && typeof t.parteMinha === "number") return t.parteMinha;
+  return t.valor;
+};
+const visivel = t => valorVisivel(t) > 0;
+const somaVisivel = arr => arr.reduce((s, t) => s + valorVisivel(t), 0);
 
 function toast(txt, erro) {
   const t = document.getElementById("toast");
@@ -324,7 +377,7 @@ function toast(txt, erro) {
 // Todos os gastos (meus e dos pais) contam nas estatísticas e saem do saldo.
 // Gastos "pais" não reembolsados acumulam em "A receber dos Pais".
 // Investimentos ativos (vencimento > hoje) ficam retidos fora da conta corrente.
-const aReceberPais = () => dados.txs.filter(t => t.conta === "pais" && !t.reembolsado).reduce((s, t) => s + t.valor, 0);
+const aReceberPais = () => dados.txs.filter(t => ehPais(t) && !t.reembolsado).reduce((s, t) => s + t.valor, 0);
 const investAtivo = i => i.vencimento > hoje();
 const totalInvestido = () => dados.invests.filter(investAtivo).reduce((s, i) => s + i.valor, 0);
 const saldoTotal = () => dados.txs.reduce((s, t) => s + (t.tipo === "receita" ? t.valor : -t.valor), 0);
@@ -341,9 +394,16 @@ async function carregarNuvem() {
     dados.grupos = data.conteudo.grupos || [];
     dados.orcamentos = data.conteudo.orcamentos || {};
     dados.metas = data.conteudo.metas || [];
+    dados.seg = data.conteudo.seg || null;
+    dados.cats = Array.isArray(data.conteudo.cats) ? data.conteudo.cats : null;
     // migração da lógica antiga: pago -> reembolsado
     dados.txs.forEach(t => {
       if (t.conta === "pais" && t.reembolsado === undefined) t.reembolsado = !!t.pago;
+      // reembolsos e dívidas recebidas deixam de contar como "recebido"
+      if (t.tipo === "receita" && t.neutro === undefined
+        && /^(reembolso dos pais|d[íi]vidas? recebidas?|recebido de )/i.test((t.nota || "").trim())) {
+        t.neutro = true;
+      }
     });
   }
   try { localStorage.setItem("contas-cache", JSON.stringify(dados)); } catch {}
@@ -408,13 +468,18 @@ async function sair() {
 async function iniciarApp() {
   document.getElementById("app").innerHTML = `<div class="vazio-msg" style="padding-top:45vh">A carregar…</div>`;
   await carregarNuvem();
+  sincronizarCats();
   render();
 }
-function mudarVista(v) { vista = v; render(); }
+function mudarVista(v) {
+  if (v !== "invest" && pinDefinido()) valoresVisiveis = false;
+  vista = v;
+  render();
+}
 function mudarMes(d) { mes = new Date(mes.getFullYear(), mes.getMonth() + d, 1); catSel = null; render(); }
 
 function render() {
-  const nDiv = dados.txs.filter(t => t.conta === "pais" && !t.reembolsado).length + dados.outras.length;
+  const nDiv = dados.txs.filter(t => ehPais(t) && !t.reembolsado).length + dados.outras.length;
   document.getElementById("app").innerHTML = `
   <div class="tabs">
     <button class="${vista === "invest" ? "ativo" : ""}" onclick="mudarVista('invest')">
@@ -439,18 +504,18 @@ function render() {
 function vistaPainel() {
   const mk = mes.getFullYear() + "-" + String(mes.getMonth() + 1).padStart(2, "0");
   const doMes = dados.txs.filter(t => t.data.slice(0, 7) === mk);
-  const recebido = doMes.filter(t => t.tipo === "receita").reduce((s, t) => s + t.valor, 0);
-  const gasto = doMes.filter(t => t.tipo === "gasto").reduce((s, t) => s + t.valor, 0);
-  const gastoProprio = doMes.filter(t => t.tipo === "gasto" && t.conta !== "pais").reduce((s, t) => s + t.valor, 0);
-  const gastoPais = doMes.filter(t => t.tipo === "gasto" && t.conta === "pais").reduce((s, t) => s + t.valor, 0);
+  const recebido = somaVisivel(doMes.filter(t => t.tipo === "receita"));
+  const gasto = somaVisivel(doMes.filter(t => t.tipo === "gasto"));
+  const gastoPais = doMes.filter(ehPais).reduce((s, t) => s + t.valor, 0);
+  const emprestado = doMes.filter(t => t.tipo === "gasto" && typeof t.parteMinha === "number")
+    .reduce((s, t) => s + (t.valor - t.parteMinha), 0);
   const saldo = recebido - gasto;
 
   const porCat = {};
-  doMes.filter(t => t.tipo === "gasto").forEach(t => {
-    if (!porCat[t.cat]) porCat[t.cat] = { total: 0, pais: 0, n: 0 };
-    porCat[t.cat].total += t.valor;
+  doMes.filter(t => t.tipo === "gasto" && visivel(t)).forEach(t => {
+    if (!porCat[t.cat]) porCat[t.cat] = { total: 0, n: 0 };
+    porCat[t.cat].total += valorVisivel(t);
     porCat[t.cat].n++;
-    if (t.conta === "pais") porCat[t.cat].pais += t.valor;
   });
   const lista = Object.entries(porCat)
     .map(([id, v]) => ({ ...catDe(id), id, ...v }))
@@ -473,7 +538,7 @@ function vistaPainel() {
     <p class="rot">${sel.icone} ${sel.nome}</p>
     <p class="val mono" style="color:${sel.cor}">${eur(sel.total)}</p>
     <p class="saldo">${Math.round((sel.total / gasto) * 100)}% dos gastos · ${sel.n} registo${sel.n > 1 ? "s" : ""}</p>` : `
-    <p class="rot">Gastei</p>
+    <p class="rot">Gastei (meu)</p>
     <p class="val mono">${eur(gasto)}</p>
     <p class="saldo-mes mono" style="color:${saldo < 0 ? "var(--vermelho)" : "var(--verde)"}">Saldo ${eur(saldo)}</p>`;
 
@@ -493,20 +558,22 @@ function vistaPainel() {
 
   <div class="stats-split">
     <div class="linha">
-      <span class="nome"><span class="bola" style="background:var(--tinta)"></span>Dinheiro Próprio Gasto</span>
-      <span class="num mono">${eur(gastoProprio)}</span>
-    </div>
-    <div class="linha">
-      <span class="nome"><span class="bola" style="background:var(--laranja)"></span>Gasto Total pelos Pais</span>
-      <span class="num mono" style="color:var(--laranja)">${eur(gastoPais)}</span>
-    </div>
-    <div class="linha" onclick="mudarVista('dividas')" style="cursor:pointer">
-      <span class="nome"><span class="bola" style="background:var(--vermelho)"></span>Devem-me</span>
-      <span class="num mono" style="color:var(--vermelho)">${eur(aReceberPais() + dados.outras.reduce((s, d) => s + d.valor, 0))} ›</span>
-    </div>
-    <div class="linha">
       <span class="nome"><span class="bola" style="background:var(--verde)"></span>Recebido</span>
       <span class="num mono" style="color:var(--verde)">+${eur(recebido)}</span>
+    </div>
+    ${gastoPais > 0 ? `
+    <div class="linha" onclick="mudarVista('dividas')" style="cursor:pointer">
+      <span class="nome"><span class="bola" style="background:var(--laranja)"></span>Comprei com dinheiro dos pais</span>
+      <span class="num mono" style="color:var(--laranja)">${eur(gastoPais)} ›</span>
+    </div>` : ""}
+    ${emprestado > 0 ? `
+    <div class="linha" onclick="mudarVista('dividas')" style="cursor:pointer">
+      <span class="nome"><span class="bola" style="background:var(--azul)"></span>Adiantei a outros</span>
+      <span class="num mono" style="color:var(--azul)">${eur(emprestado)} ›</span>
+    </div>` : ""}
+    <div class="linha" onclick="mudarVista('dividas')" style="cursor:pointer">
+      <span class="nome"><span class="bola" style="background:var(--vermelho)"></span>Devem-me (total)</span>
+      <span class="num mono" style="color:var(--vermelho)">${eur(aReceberPais() + dados.outras.reduce((s, d) => s + d.valor, 0))} ›</span>
     </div>
   </div>
 
@@ -535,13 +602,14 @@ function listaMovimentos() {
   if (termo) {
     // pesquisa em todos os meses, por descrição ou categoria
     base = dados.txs.filter(t => {
+      if (t.neutro) return false;
       const c = t.cat ? catDe(t.cat) : null;
       return (t.nota || "").toLowerCase().includes(termo)
         || (c && c.nome.toLowerCase().includes(termo));
     });
   } else {
     const mk = mes.getFullYear() + "-" + String(mes.getMonth() + 1).padStart(2, "0");
-    base = dados.txs.filter(t => t.data.slice(0, 7) === mk);
+    base = dados.txs.filter(t => t.data.slice(0, 7) === mk && !t.neutro);
   }
   const ordenados = [...base].sort((a, b) => b.data.localeCompare(a.data) || b.id - a.id).slice(0, 200);
   if (ordenados.length === 0) {
@@ -563,11 +631,16 @@ function listaMovimentos() {
       </div>`;
     }
     const c = catDe(t.cat);
+    const pais = ehPais(t);
+    const dividido = !pais && typeof t.parteMinha === "number";
+    const extra = pais
+      ? " · dinheiro dos pais" + (t.reembolsado ? " ✓" : " (na dívida)")
+      : dividido ? " · a tua parte de " + eur(t.valor) : "";
     return `
     <div class="leg-linha">
-      <div class="leg-icone" style="background:${c.cor}">${c.icone}</div>
-      <div class="leg-nome">${esc(t.nota || c.nome)}<small>${dataFmt} · ${c.nome}${t.conta === "pais" ? (t.reembolsado ? " · Pais ✓" : " · Pais (a receber)") : ""}</small></div>
-      <div class="leg-val mono">${eur(t.valor)}</div>
+      <div class="leg-icone" style="background:${c.cor}${pais ? ";opacity:0.5" : ""}">${c.icone}</div>
+      <div class="leg-nome">${esc(t.nota || c.nome)}<small>${dataFmt} · ${c.nome}${extra}</small></div>
+      <div class="leg-val mono" style="${pais ? "color:var(--laranja)" : ""}">${pais ? eur(t.valor) : eur(valorVisivel(t))}</div>
       <button class="editar" onclick="abrirEdicao(${t.id})">✎</button>
       <button class="apagar" onclick="apagarTx(${t.id})">🗑</button>
     </div>`;
@@ -582,7 +655,7 @@ function listaCategorias(lista, recebido) {
     return `
     <div class="leg-linha" onclick="abrirDetalhe('${c.id}')">
       <div class="leg-icone" style="background:${c.cor}">${c.icone}</div>
-      <div class="leg-nome">${c.nome}<small>${c.n} registo${c.n > 1 ? "s" : ""}${c.pais > 0 ? " · pais " + eur(c.pais) : ""}${acima ? ` · <span class="aviso-orc">acima do orçamento (${eur(orc)})</span>` : ""}</small></div>
+      <div class="leg-nome">${c.nome}<small>${c.n} registo${c.n > 1 ? "s" : ""}${acima ? ` · <span class="aviso-orc">acima do orçamento (${eur(orc)})</span>` : ""}</small></div>
       <div class="leg-val mono">${eur(c.total)}</div>
     </div>`;
   }).join("")}
@@ -633,8 +706,7 @@ function verificarOrcamento(catId, dataStr) {
   const orc = dados.orcamentos[catId];
   if (!orc) return null;
   const mk = dataStr.slice(0, 7);
-  const total = dados.txs.filter(t => t.tipo === "gasto" && t.cat === catId && t.data.slice(0, 7) === mk)
-    .reduce((s, t) => s + t.valor, 0);
+  const total = somaVisivel(dados.txs.filter(t => t.tipo === "gasto" && t.cat === catId && t.data.slice(0, 7) === mk));
   const c = catDe(catId);
   if (total > orc) return "⚠️ " + c.nome + ": passaste o orçamento — " + eur(total) + " de " + eur(orc);
   if (total >= orc * 0.9) return "⚠️ " + c.nome + ": perto do limite — " + eur(total) + " de " + eur(orc);
@@ -671,6 +743,7 @@ function confirmarRegisto(catId) {
     const t = dados.txs.find(x => x.id === reg.editId);
     if (t) {
       const continuaPais = reg.tipo === "gasto" && reg.pais && t.conta === "pais";
+      const valorAntigo = t.valor;
       t.tipo = reg.tipo;
       t.conta = reg.tipo === "gasto" && reg.pais ? "pais" : "minha";
       t.valor = v;
@@ -678,6 +751,7 @@ function confirmarRegisto(catId) {
       t.data = reg.data;
       t.nota = (reg.nota || "").trim();
       if (!continuaPais) t.reembolsado = false;
+      if (typeof t.parteMinha === "number" && v !== valorAntigo) delete t.parteMinha;
     }
     gravar();
     fecharRegisto();
@@ -703,7 +777,7 @@ function confirmarRegisto(catId) {
   const aviso = reg.tipo === "gasto" && catId ? verificarOrcamento(catId, reg.data) : null;
   if (aviso) toast(aviso, true);
   else toast(reg.tipo === "gasto"
-    ? (reg.pais ? "Registado — a receber dos pais" : "Gasto registado")
+    ? (reg.pais ? "Registado na dívida dos pais" : "Gasto registado")
     : "Entrada registada");
   if (reg.tipo === "gasto" && reg.dividir) abrirDivisao(novoId);
 }
@@ -747,7 +821,7 @@ function renderDivisao(txId) {
         </div>`).join("")}
       ${n > 0 ? `
       <div class="cartao" style="background:var(--fundo);box-shadow:none">
-        <div class="info"><p>Tu</p><p>a tua parte (fica nos teus gastos)</p></div>
+        <div class="info"><p>Tu</p><p>a tua parte — é a única que conta nos gastos</p></div>
         <span class="mono" style="font-weight:600">${eur(minhaParte)}</span>
       </div>
       <p class="dica" style="margin-top:6px">${n + 1} pessoas · ${eur(parte)} cada</p>` : ""}
@@ -773,7 +847,7 @@ function concluirDivisao(txId) {
   const c = catDe(t.cat);
   const parte = Math.round((divTotal / (n + 1)) * 100) / 100;
   const minhaParte = Math.round((divTotal - parte * n) * 100) / 100;
-  t.valor = minhaParte; // nos teus gastos fica só a tua parte
+  t.parteMinha = minhaParte; // só a tua parte conta nos gastos; o total continua a sair do saldo
   divPessoas.forEach((quem, i) => {
     dados.outras.push({
       id: Date.now() + i, quem,
@@ -801,7 +875,7 @@ function renderRegisto() {
         <div class="resumo-passo2">
           <p class="rv mono">${esc(reg.valor) || "0"}<span class="euro" style="font-size:20px;color:var(--cinza)"> €</span></p>
           ${reg.nota.trim() ? `<p class="rn">${esc(reg.nota.trim())}</p>` : ""}
-          ${reg.pais ? `<p class="rp">Pago pelos Pais — fica a receber</p>` : ""}
+          ${reg.pais ? `<p class="rp">Dinheiro dos pais — vai para a dívida "pais"</p>` : ""}
         </div>
         <p class="dica">Escolhe a categoria para guardar:</p>
         <div class="grelha-cats">
@@ -809,6 +883,9 @@ function renderRegisto() {
             <button onclick="confirmarRegisto('${c.id}')">
               <span class="cat-bola" style="background:${c.cor}">${c.icone}</span>${c.nome}
             </button>`).join("")}
+          <button onclick="abrirCats(true)" style="color:var(--cinza)">
+            <span class="cat-bola" style="background:var(--claro);color:var(--cinza)">＋</span>Nova
+          </button>
         </div>
       </div>
     </div>`;
@@ -827,7 +904,7 @@ function renderRegisto() {
       <input class="nota-input" id="r-nota" type="text" placeholder="Descrição" value="${esc(reg.nota)}">
       ${g ? `
       <div class="toggle-pais" onclick="alternarPais()">
-        <span class="txt">Pago pelos Pais (Reembolsável)<small>Sai do teu saldo agora, fica a receber deles</small></span>
+        <span class="txt">Dinheiro dos Pais<small>Não conta nos teus gastos — vai para a dívida "pais"</small></span>
         <span class="switch ${reg.pais ? "on" : ""}"></span>
       </div>
       <div class="toggle-pais" onclick="alternarDividir()">
@@ -852,7 +929,7 @@ function renderRegisto() {
 function abrirDetalhe(catId) {
   const mk = mes.getFullYear() + "-" + String(mes.getMonth() + 1).padStart(2, "0");
   const c = catDe(catId);
-  const lista = dados.txs.filter(t => t.tipo === "gasto" && t.cat === catId && t.data.slice(0, 7) === mk)
+  const lista = dados.txs.filter(t => t.tipo === "gasto" && t.cat === catId && t.data.slice(0, 7) === mk && visivel(t))
     .sort((a, b) => b.data.localeCompare(a.data));
   document.getElementById("modal").innerHTML = `
   <div class="veu" onclick="if(event.target===this)fecharRegisto()">
@@ -865,9 +942,9 @@ function abrirDetalhe(catId) {
         <div class="cartao">
           <div class="info">
             <p>${esc(t.nota || c.nome)}</p>
-            <p>${t.data.split("-").reverse().join("/")}${t.conta === "pais" ? " · Pais" + (t.reembolsado ? " ✓" : " (a receber)") : ""}</p>
+            <p>${t.data.split("-").reverse().join("/")}${typeof t.parteMinha === "number" ? " · a tua parte de " + eur(t.valor) : ""}</p>
           </div>
-          <span class="mono">${eur(t.valor)}</span>
+          <span class="mono">${eur(valorVisivel(t))}</span>
           <button class="editar" onclick="abrirEdicao(${t.id})">✎</button>
           <button class="apagar" onclick="apagarTx(${t.id})">🗑</button>
         </div>`).join("")}
@@ -875,8 +952,13 @@ function abrirDetalhe(catId) {
   </div>`;
 }
 function apagarTx(id) {
-  if (!confirm("Apagar este registo?")) return;
+  const ligadas = dados.outras.filter(d => d.origemTx === id);
+  const p = ligadas.length !== 1 ? "s" : "";
+  if (!confirm(ligadas.length
+    ? "Apagar este registo? Também apaga " + ligadas.length + " dívida" + p + " associada" + p + "."
+    : "Apagar este registo?")) return;
   dados.txs = dados.txs.filter(t => t.id !== id);
+  dados.outras = dados.outras.filter(d => d.origemTx !== id);
   gravar();
   render();
 }
@@ -886,32 +968,41 @@ let pessoasAbertas = {};
 function togglePessoa(k) { pessoasAbertas[k] = !pessoasAbertas[k]; render(); }
 
 function vistaDividas() {
-  const pendentesPais = dados.txs.filter(t => t.conta === "pais" && !t.reembolsado)
-    .sort((a, b) => b.data.localeCompare(a.data));
-  const totalPais = pendentesPais.reduce((s, t) => s + t.valor, 0);
-  const totalOutras = dados.outras.reduce((s, d) => s + d.valor, 0);
-  const totalGeral = totalPais + totalOutras;
-
-  // agrupar outras dívidas por pessoa
+  // Tudo junto: as compras feitas com dinheiro dos pais entram como a pessoa "pais".
   const grupos = {};
+  const juntar = (nomeRaw, item) => {
+    const nome = (nomeRaw || "").trim() || "sem nome";
+    const k = chaveNome(nome);
+    if (!grupos[k]) grupos[k] = { nome, itens: [], total: 0 };
+    grupos[k].itens.push(item);
+    grupos[k].total += item.valor;
+  };
+  dados.txs.filter(t => ehPais(t) && !t.reembolsado).forEach(t => {
+    const c = catDe(t.cat);
+    juntar("pais", {
+      kind: "tx", id: t.id, valor: t.valor, data: t.data,
+      desc: t.nota || c.nome, cor: c.cor, icone: c.icone,
+    });
+  });
   dados.outras.forEach(d => {
-    const k = (d.quem || "").trim().toLowerCase();
-    if (!grupos[k]) grupos[k] = { nome: (d.quem || "").trim(), lista: [], total: 0 };
-    grupos[k].lista.push(d);
-    grupos[k].total += d.valor;
+    juntar(d.quem, {
+      kind: "outra", id: d.id, valor: d.valor, data: d.data,
+      desc: d.desc || "Dívida", cor: "#9AA0A8", icone: "💸",
+    });
   });
   const pessoas = Object.entries(grupos).sort((a, b) => b[1].total - a[1].total);
+  const totalGeral = pessoas.reduce((s, p) => s + p[1].total, 0);
 
   return `
   <div class="pagina">
     <div class="destaque">
       <p class="rot">Devem-me no total</p>
       <p class="val mono" style="color:var(--laranja)">${eur(totalGeral)}</p>
-      <p class="sub">${pessoas.length + (pendentesPais.length ? 1 : 0)} pessoa${(pessoas.length + (pendentesPais.length ? 1 : 0)) !== 1 ? "s" : ""}</p>
+      <p class="sub">${pessoas.length} pessoa${pessoas.length !== 1 ? "s" : ""}</p>
     </div>
 
     <div class="form-inline">
-      <input id="d-quem" type="text" placeholder="Quem">
+      <input id="d-quem" type="text" placeholder="Quem (ex: pais, joão…)">
       <input id="d-desc" type="text" placeholder="Motivo da dívida">
       <div class="lado-a-lado">
         <input id="d-valor" type="text" inputmode="decimal" placeholder="Valor €">
@@ -921,86 +1012,68 @@ function vistaDividas() {
 
     ${totalGeral === 0 ? `<p class="vazio-msg">Ninguém te deve nada 👌</p>` : ""}
 
-    ${pendentesPais.length ? `
-    <div class="pessoa-card ${pessoasAbertas["__pais"] ? "aberto" : ""}">
-      <div class="pessoa-topo" onclick="togglePessoa('__pais')">
-        <div class="pessoa-nome">Pais<small>${pendentesPais.length} dívida${pendentesPais.length !== 1 ? "s" : ""}</small></div>
-        <span class="mono pessoa-total">${eur(totalPais)}</span>
-        <span class="chev">⌄</span>
-      </div>
-      ${pessoasAbertas["__pais"] ? `
-      <div class="pessoa-corpo">
-        ${pendentesPais.map(t => {
-          const c = catDe(t.cat);
-          return `
-          <div class="divida-linha">
-            <div class="leg-icone" style="background:${c.cor};width:30px;height:30px;font-size:14px">${c.icone}</div>
-            <div class="info">
-              <p>${esc(t.nota || c.nome)}</p>
-              <p>registada a ${t.data.split("-").reverse().join("/")}</p>
-            </div>
-            <span class="mono" style="color:var(--laranja)">${eur(t.valor)}</span>
-            <button class="editar" onclick="abrirEdicao(${t.id})">✎</button>
-            <button class="apagar" onclick="apagarTx(${t.id})">🗑</button>
-          </div>`;
-        }).join("")}
-        <button class="botao-grande" style="background:var(--verde);margin:10px 0 4px"
-          onclick="confirmarReembolso(${totalPais})">✓ Confirmar Reembolso dos Pais (${eur(totalPais)})</button>
-      </div>` : ""}
-    </div>` : ""}
-
-    ${pessoas.map(([k, g]) => `
+    ${pessoas.map(par => {
+      const k = par[0], g = par[1];
+      const kj = esc(k).replace(/'/g, "\\'");
+      return `
     <div class="pessoa-card ${pessoasAbertas[k] ? "aberto" : ""}">
-      <div class="pessoa-topo" onclick="togglePessoa('${esc(k).replace(/'/g, "\\'")}')">
-        <div class="pessoa-nome">${esc(g.nome)}<small>${g.lista.length} dívida${g.lista.length !== 1 ? "s" : ""}</small></div>
+      <div class="pessoa-topo" onclick="togglePessoa('${kj}')">
+        <div class="pessoa-nome">${esc(g.nome)}<small>${g.itens.length} dívida${g.itens.length !== 1 ? "s" : ""}</small></div>
         <span class="mono pessoa-total">${eur(g.total)}</span>
         <span class="chev">⌄</span>
       </div>
       ${pessoasAbertas[k] ? `
       <div class="pessoa-corpo">
-        ${g.lista.sort((a, b) => b.data.localeCompare(a.data)).map(d => `
+        ${g.itens.slice().sort((a, b) => b.data.localeCompare(a.data)).map(it => `
           <div class="divida-linha">
+            <div class="leg-icone" style="background:${it.cor};width:30px;height:30px;font-size:14px">${it.icone}</div>
             <div class="info">
-              <p>${esc(d.desc || "Dívida")}</p>
-              <p>registada a ${d.data.split("-").reverse().join("/")}</p>
+              <p>${esc(it.desc)}</p>
+              <p>registada a ${it.data.split("-").reverse().join("/")}</p>
             </div>
-            <span class="mono" style="color:var(--laranja)">${eur(d.valor)}</span>
-            <button class="btn-mini" style="background:var(--verde)" onclick="receberOutra(${d.id})">✓</button>
-            <button class="editar" onclick="abrirEdicaoOutra(${d.id})">✎</button>
-            <button class="apagar" onclick="apagarOutra(${d.id})">🗑</button>
+            <span class="mono" style="color:var(--laranja)">${eur(it.valor)}</span>
+            <button class="btn-mini" style="background:var(--verde)" onclick="${it.kind === "tx" ? `receberPais(${it.id})` : `receberOutra(${it.id})`}">✓</button>
+            <button class="editar" onclick="${it.kind === "tx" ? `abrirEdicao(${it.id})` : `abrirEdicaoOutra(${it.id})`}">✎</button>
+            <button class="apagar" onclick="${it.kind === "tx" ? `apagarTx(${it.id})` : `apagarOutra(${it.id})`}">🗑</button>
           </div>`).join("")}
-        ${g.lista.length > 1 ? `
+        ${g.itens.length > 1 ? `
         <button class="botao-grande" style="background:var(--verde);margin:10px 0 4px"
-          onclick="receberTudoPessoa('${esc(k).replace(/'/g, "\\'")}')">✓ Recebi tudo de ${esc(g.nome)} (${eur(g.total)})</button>` : ""}
+          onclick="receberTudoPessoa('${kj}')">✓ Recebi tudo de ${esc(g.nome)} (${eur(g.total)})</button>` : ""}
       </div>` : ""}
-    </div>`).join("")}
+    </div>`;
+    }).join("")}
   </div>`;
 }
-function receberTudoPessoa(k) {
-  const lista = dados.outras.filter(d => (d.quem || "").trim().toLowerCase() === k);
-  if (!lista.length) return;
-  const nome = lista[0].quem.trim();
-  const total = lista.reduce((s, d) => s + d.valor, 0);
-  if (!confirm(nome + " pagou-te tudo (" + eur(total) + ")?")) return;
+// Volta a entrar no saldo, mas nunca aparece como "recebido".
+function registarAcerto(valor, nota) {
   dados.txs.push({
-    id: Date.now(), tipo: "receita", conta: "minha", valor: total,
-    cat: null, data: hoje(), nota: "Dívidas recebidas: " + nome, reembolsado: false,
+    id: Date.now(), tipo: "receita", conta: "minha", valor,
+    cat: null, data: hoje(), nota, reembolsado: false, neutro: true,
   });
-  dados.outras = dados.outras.filter(d => (d.quem || "").trim().toLowerCase() !== k);
-  gravar();
-  render();
-  toast("Recebido — entrou no saldo");
 }
-function confirmarReembolso(total) {
-  if (!confirm("Confirmar que os teus pais te pagaram " + eur(total) + "? O valor volta ao teu saldo.")) return;
-  dados.txs.forEach(t => { if (t.conta === "pais" && !t.reembolsado) t.reembolsado = true; });
-  dados.txs.push({
-    id: Date.now(), tipo: "receita", conta: "minha", valor: total,
-    cat: null, data: hoje(), nota: "Reembolso dos pais", reembolsado: false,
-  });
+function receberPais(txId) {
+  const t = dados.txs.find(x => x.id === txId);
+  if (!t) return;
+  if (!confirm("Os teus pais já te devolveram " + eur(t.valor) + "?")) return;
+  t.reembolsado = true;
+  registarAcerto(t.valor, "Reembolso dos pais");
   gravar();
   render();
-  toast("Reembolso confirmado — saldo reposto");
+  toast("Saiu da dívida — saldo reposto");
+}
+function receberTudoPessoa(k) {
+  const outras = dados.outras.filter(d => chaveNome(d.quem) === k);
+  const txs = k === "pais" ? dados.txs.filter(t => ehPais(t) && !t.reembolsado) : [];
+  const total = outras.concat(txs).reduce((s, x) => s + x.valor, 0);
+  if (total <= 0) return;
+  const nome = (outras[0] && outras[0].quem.trim()) || (txs.length ? "pais" : k);
+  if (!confirm(nome + " pagou-te tudo (" + eur(total) + ")?")) return;
+  txs.forEach(t => { t.reembolsado = true; });
+  dados.outras = dados.outras.filter(d => chaveNome(d.quem) !== k);
+  registarAcerto(total, "Recebido de " + nome);
+  gravar();
+  render();
+  toast("Saiu da dívida — saldo reposto");
 }
 function novaOutraDivida() {
   const quem = document.getElementById("d-quem").value.trim();
@@ -1059,10 +1132,7 @@ function receberOutra(id) {
   const d = dados.outras.find(d => d.id === id);
   if (!d) return;
   if (!confirm(d.quem + " pagou-te " + eur(d.valor) + "?")) return;
-  dados.txs.push({
-    id: Date.now(), tipo: "receita", conta: "minha", valor: d.valor,
-    cat: null, data: hoje(), nota: "Dívida recebida: " + d.quem + (d.desc ? " — " + d.desc : ""), reembolsado: false,
-  });
+  registarAcerto(d.valor, "Dívida recebida: " + d.quem + (d.desc ? " — " + d.desc : ""));
   dados.outras = dados.outras.filter(x => x.id !== id);
   gravar();
   render();
@@ -1084,15 +1154,18 @@ function vistaInvest() {
     <div class="dupla">
       <div class="destaque">
         <p class="rot">Conta Corrente</p>
-        <p class="val mono" style="color:${contaCorrente() < 0 ? "var(--vermelho)" : "var(--verde)"}">${eur(contaCorrente())}</p>
+        <p class="val mono ${valoresVisiveis ? "" : "oculto-val"}" style="${valoresVisiveis ? "color:" + (contaCorrente() < 0 ? "var(--vermelho)" : "var(--verde)") : ""}">${valoresVisiveis ? eur(contaCorrente()) : "••••"}</p>
         <p class="sub">disponível</p>
       </div>
       <div class="destaque">
         <p class="rot">Investido</p>
-        <p class="val mono" style="color:var(--azul)">${eur(totalInvestido())}</p>
+        <p class="val mono ${valoresVisiveis ? "" : "oculto-val"}" style="${valoresVisiveis ? "color:var(--azul)" : ""}">${valoresVisiveis ? eur(totalInvestido()) : "••••"}</p>
         <p class="sub">retido a prazo</p>
       </div>
     </div>
+    <button class="btn-olho" onclick="alternarValores()">
+      ${valoresVisiveis ? "🙈 Ocultar valores" : "👁️ Mostrar valores" + (pinDefinido() ? " (código)" : "")}
+    </button>
 
     <p class="sec-titulo">Metas de poupança</p>
     <div class="form-inline">
@@ -1116,7 +1189,7 @@ function vistaInvest() {
         </div>
         <div class="barra-meta"><div style="width:${pct}%${feita ? ";background:var(--laranja)" : ""}"></div></div>
         <p class="sub-meta">
-          <span class="mono">${eur(prog)}</span> de <span class="mono">${eur(m.valor)}</span> (${Math.round(pct)}%)
+          <span class="mono ${valoresVisiveis ? "" : "oculto-val"}">${eurOculto(prog)}</span> de <span class="mono">${eur(m.valor)}</span> (${Math.round(pct)}%)
           ${m.prazo ? " · até " + m.prazo.split("-").reverse().join("/") : ""}
           ${feita ? " · conseguiste! 🎉" : ""}
         </p>
@@ -1132,7 +1205,7 @@ function vistaInvest() {
     </div>
     ${dados.grupos.map(g => {
       const membros = dados.txs.filter(t => g.txIds.includes(t.id));
-      const total = membros.reduce((s, t) => s + t.valor, 0);
+      const total = somaVisivel(membros);
       return `
       <div class="cartao" onclick="abrirGrupo(${g.id})" style="cursor:pointer">
         <div class="leg-icone" style="background:var(--tinta)">📁</div>
@@ -1166,7 +1239,7 @@ function vistaInvest() {
           <p>${esc(i.desc || "Depósito a prazo")}</p>
           <p>vence a ${i.vencimento.split("-").reverse().join("/")} · faltam ${dias} dia${dias !== 1 ? "s" : ""}</p>
         </div>
-        <span class="mono" style="color:var(--azul)">${eur(i.valor)}</span>
+        <span class="mono ${valoresVisiveis ? "" : "oculto-val"}" style="${valoresVisiveis ? "color:var(--azul)" : ""}">${eurOculto(i.valor)}</span>
         <button class="editar" onclick="abrirEdicaoInvest(${i.id})">✎</button>
         <button class="apagar" onclick="apagarInvest(${i.id})">🗑</button>
       </div>`;
@@ -1180,7 +1253,7 @@ function vistaInvest() {
           <p>${esc(i.desc || "Depósito a prazo")}</p>
           <p>venceu a ${i.vencimento.split("-").reverse().join("/")} — devolvido</p>
         </div>
-        <span class="mono">${eur(i.valor)}</span>
+        <span class="mono ${valoresVisiveis ? "" : "oculto-val"}">${eurOculto(i.valor)}</span>
         <button class="editar" onclick="abrirEdicaoInvest(${i.id})">✎</button>
         <button class="apagar" onclick="apagarInvest(${i.id})">🗑</button>
       </div>`).join("")}
@@ -1192,6 +1265,24 @@ function vistaInvest() {
       </div>
       <p class="rotulo-campo">Escreve o teu dinheiro total real (conta corrente + investido). A app cria um acerto para bater certo.</p>
       <button class="botao-verde" style="padding:11px;background:var(--tinta)" onclick="acertarSaldo()">Acertar</button>
+    </div>
+
+    <p class="sec-titulo">Categorias</p>
+    <div class="form-inline">
+      <p class="rotulo-campo">Criar, renomear, mudar cor e ordem. As que já têm movimentos são arquivadas em vez de apagadas, para não estragar o histórico.</p>
+      <button class="botao-verde" style="padding:11px;background:var(--tinta)" onclick="abrirCats()">Gerir categorias</button>
+    </div>
+
+    <p class="sec-titulo">Código dos valores</p>
+    <div class="form-inline">
+      <p class="rotulo-campo">${pinDefinido()
+        ? "Ativo: é preciso o código para ver a conta corrente e o investido. Ao sair deste menu, voltam a ficar ocultos."
+        : "Sem código: os valores começam ocultos, mas basta tocar no olho para os ver."}</p>
+      <button class="botao-verde" style="padding:11px;background:var(--tinta)"
+        onclick="abrirPin('${pinDefinido() ? "trocar" : "definir"}')">${pinDefinido() ? "Alterar código" : "Definir código"}</button>
+      ${pinDefinido() ? `
+      <button class="botao-verde" style="padding:11px;background:var(--vermelho);margin-top:8px"
+        onclick="abrirPin('remover')">Remover código</button>` : ""}
     </div>
 
     <p class="rodape-conta">${sessao ? esc(sessao.user.email) : ""} · <button onclick="sair()">Sair</button></p>
@@ -1307,7 +1398,7 @@ function graficoSaldo() {
     </svg>
     <div class="grafico-legenda">
       <span>${fmtMes(serie[0].k)}</span>
-      <span class="mono" style="font-weight:600;color:${ultimo.v < 0 ? "var(--vermelho)" : "var(--verde)"}">${eur(ultimo.v)}</span>
+      <span class="mono ${podeVerValores() ? "" : "oculto-val"}" style="font-weight:600;${podeVerValores() ? "color:" + (ultimo.v < 0 ? "var(--vermelho)" : "var(--verde)") : ""}">${podeVerValores() ? eur(ultimo.v) : "••••"}</span>
       <span>${fmtMes(ultimo.k)}</span>
     </div>
   </div>`;
@@ -1376,12 +1467,12 @@ let anoStats = new Date().getFullYear();
 function mudarAno(d) { anoStats += d; render(); }
 function estatisticasAno() {
   const doAno = dados.txs.filter(t => t.data.slice(0, 4) == anoStats);
-  const gasto = doAno.filter(t => t.tipo === "gasto").reduce((s, t) => s + t.valor, 0);
-  const recebido = doAno.filter(t => t.tipo === "receita").reduce((s, t) => s + t.valor, 0);
+  const gasto = somaVisivel(doAno.filter(t => t.tipo === "gasto"));
+  const recebido = somaVisivel(doAno.filter(t => t.tipo === "receita"));
   const saldo = recebido - gasto;
 
   const porCat = {};
-  doAno.filter(t => t.tipo === "gasto").forEach(t => { porCat[t.cat] = (porCat[t.cat] || 0) + t.valor; });
+  doAno.filter(t => t.tipo === "gasto" && visivel(t)).forEach(t => { porCat[t.cat] = (porCat[t.cat] || 0) + valorVisivel(t); });
   const topCats = Object.entries(porCat)
     .map(([id, total]) => ({ ...catDe(id), total }))
     .sort((a, b) => b.total - a.total).slice(0, 5);
@@ -1389,7 +1480,7 @@ function estatisticasAno() {
   const porMes = {};
   doAno.forEach(t => {
     const m = +t.data.slice(5, 7);
-    porMes[m] = (porMes[m] || 0) + (t.tipo === "receita" ? t.valor : -t.valor);
+    porMes[m] = (porMes[m] || 0) + (t.tipo === "receita" ? valorVisivel(t) : -valorVisivel(t));
   });
   const mesesComDados = Object.entries(porMes);
   let melhor = null, pior = null;
@@ -1496,7 +1587,7 @@ function abrirGrupo(id) {
 }
 function listaGrupoHtml() {
   const termo = grupoPesq.trim().toLowerCase();
-  let gastos = dados.txs.filter(t => t.tipo === "gasto");
+  let gastos = dados.txs.filter(t => t.tipo === "gasto" && visivel(t));
   if (termo) {
     gastos = gastos.filter(t => {
       const c = catDe(t.cat);
@@ -1513,7 +1604,7 @@ function listaGrupoHtml() {
       <span class="check-bola ${dentro ? "on" : ""}">${dentro ? "✓" : ""}</span>
       <div class="leg-icone" style="background:${c.cor}">${c.icone}</div>
       <div class="leg-nome">${esc(t.nota || c.nome)}<small>${t.data.split("-").reverse().join("/")} · ${c.nome}</small></div>
-      <div class="leg-val mono">${eur(t.valor)}</div>
+      <div class="leg-val mono">${eur(valorVisivel(t))}</div>
     </div>`;
   }).join("");
 }
@@ -1521,7 +1612,7 @@ function atualizarListaGrupo(gId) {
   const lista = document.getElementById("lista-grupo");
   if (lista) lista.innerHTML = listaGrupoHtml();
   const tot = document.getElementById("grupo-total");
-  if (tot) tot.textContent = eur(dados.txs.filter(t => grupoTmp.includes(t.id)).reduce((s, t) => s + t.valor, 0));
+  if (tot) tot.textContent = eur(somaVisivel(dados.txs.filter(t => grupoTmp.includes(t.id))));
 }
 function alternarTxGrupo(txId) {
   grupoTmp = grupoTmp.includes(txId) ? grupoTmp.filter(i => i !== txId) : [...grupoTmp, txId];
@@ -1546,18 +1637,17 @@ function vistaEstat() {
   const nomeAnt = MESES[dAnt.getMonth()];
 
   const doMes = dados.txs.filter(t => t.data.slice(0, 7) === mk);
-  const gasto = doMes.filter(t => t.tipo === "gasto").reduce((s, t) => s + t.valor, 0);
-  const gastoAnt = dados.txs.filter(t => t.tipo === "gasto" && t.data.slice(0, 7) === mkAnt)
-    .reduce((s, t) => s + t.valor, 0);
+  const gasto = somaVisivel(doMes.filter(t => t.tipo === "gasto"));
+  const gastoAnt = somaVisivel(dados.txs.filter(t => t.tipo === "gasto" && t.data.slice(0, 7) === mkAnt));
   const houveAnt = dados.txs.some(t => t.data.slice(0, 7) === mkAnt);
   const delta = gasto - gastoAnt;
-  const vezesDesporto = doMes.filter(t => t.tipo === "gasto" && CATS_DESPORTO.includes(t.cat)).length;
+  const vezesDesporto = doMes.filter(t => t.tipo === "gasto" && catDesporto(t.cat)).length;
 
   // comparação por categoria: mês atual vs anterior
   const atualCat = {}, antCat = {};
-  doMes.filter(t => t.tipo === "gasto").forEach(t => { atualCat[t.cat] = (atualCat[t.cat] || 0) + t.valor; });
-  dados.txs.filter(t => t.tipo === "gasto" && t.data.slice(0, 7) === mkAnt)
-    .forEach(t => { antCat[t.cat] = (antCat[t.cat] || 0) + t.valor; });
+  doMes.filter(t => t.tipo === "gasto" && visivel(t)).forEach(t => { atualCat[t.cat] = (atualCat[t.cat] || 0) + valorVisivel(t); });
+  dados.txs.filter(t => t.tipo === "gasto" && t.data.slice(0, 7) === mkAnt && visivel(t))
+    .forEach(t => { antCat[t.cat] = (antCat[t.cat] || 0) + valorVisivel(t); });
   const idsComp = [...new Set([...Object.keys(atualCat), ...Object.keys(antCat)])];
   const comparacao = idsComp.map(id => ({
     ...catDe(id), id,
@@ -1637,6 +1727,255 @@ function vistaEstat() {
     <p class="sec-titulo">Estatísticas do ano</p>
     ${estatisticasAno()}
   </div>`;
+}
+
+// ---------- gestor de categorias ----------
+let catEdit = null;      // id em edicao (null = criar)
+let catsVolta = false;   // abriu a partir da folha de registo?
+let catForm = { nome: "", icone: "", cor: CORES_CAT[0], desporto: false };
+
+function catFormLimpo() { return { nome: "", icone: "", cor: CORES_CAT[0], desporto: false }; }
+function abrirCats(deRegisto) {
+  catsVolta = !!deRegisto;
+  catEdit = null;
+  catForm = catFormLimpo();
+  renderCats();
+}
+function fecharCats() {
+  if (catsVolta) { catsVolta = false; renderRegisto(); return; }
+  document.getElementById("modal").innerHTML = "";
+}
+function guardarCamposCat() {
+  const n = document.getElementById("cat-nome");
+  const i = document.getElementById("cat-icone");
+  if (n) catForm.nome = n.value;
+  if (i) catForm.icone = i.value;
+}
+function escolherCorCat(cor) { guardarCamposCat(); catForm.cor = cor; renderCats(); }
+function alternarDesportoCat() { guardarCamposCat(); catForm.desporto = !catForm.desporto; renderCats(); }
+function editarCat(id) {
+  const c = dados.cats.find(x => x.id === id);
+  if (!c) return;
+  catEdit = id;
+  catForm = { nome: c.nome, icone: c.icone, cor: c.cor, desporto: !!c.desporto };
+  renderCats();
+}
+function cancelarEdicaoCat() { catEdit = null; catForm = catFormLimpo(); renderCats(); }
+function aplicarCats() { sincronizarCats(); gravar(); render(); renderCats(); }
+function guardarCat() {
+  guardarCamposCat();
+  const nome = (catForm.nome || "").trim();
+  const icone = (catForm.icone || "").trim() || "📦";
+  if (!nome) { toast("Escreve o nome da categoria", true); return; }
+  if (dados.cats.some(c => c.id !== catEdit && c.nome.trim().toLowerCase() === nome.toLowerCase())) {
+    toast("Já tens uma categoria com esse nome", true); return;
+  }
+  if (catEdit) {
+    const c = dados.cats.find(x => x.id === catEdit);
+    if (c) { c.nome = nome; c.icone = icone; c.cor = catForm.cor; c.desporto = catForm.desporto; }
+  } else {
+    dados.cats.push({ id: "c" + Date.now().toString(36), nome, icone, cor: catForm.cor, desporto: catForm.desporto });
+  }
+  const editava = !!catEdit;
+  catEdit = null;
+  catForm = catFormLimpo();
+  aplicarCats();
+  toast(editava ? "Categoria atualizada" : "Categoria criada");
+}
+function apagarCat(id) {
+  const c = dados.cats.find(x => x.id === id);
+  if (!c) return;
+  const n = usosCat(id);
+  if (n === 0) {
+    if (!confirm("Apagar a categoria " + c.nome + "?")) return;
+    dados.cats = dados.cats.filter(x => x.id !== id);
+    delete dados.orcamentos[id];
+  } else {
+    if (!confirm(c.nome + " tem " + n + " registo" + (n !== 1 ? "s" : "")
+      + ". Apagá-la estragava o histórico, por isso vai ser arquivada: desaparece do registo, "
+      + "mas os movimentos antigos continuam com o nome e a cor certos. Continuar?")) return;
+    c.arquivada = true;
+  }
+  if (catEdit === id) { catEdit = null; catForm = catFormLimpo(); }
+  aplicarCats();
+}
+function reativarCat(id) {
+  const c = dados.cats.find(x => x.id === id);
+  if (!c) return;
+  delete c.arquivada;
+  aplicarCats();
+}
+function moverCat(id, d) {
+  const i = dados.cats.findIndex(c => c.id === id);
+  const j = i + d;
+  if (i < 0 || j < 0 || j >= dados.cats.length) return;
+  const tmp = dados.cats[i];
+  dados.cats[i] = dados.cats[j];
+  dados.cats[j] = tmp;
+  aplicarCats();
+}
+function linhaCat(c, i, total) {
+  const n = usosCat(c.id);
+  return `
+  <div class="divida-linha">
+    <div class="leg-icone" style="background:${c.cor};width:30px;height:30px;font-size:14px">${c.icone}</div>
+    <div class="info">
+      <p>${esc(c.nome)}${c.desporto ? " ⚽" : ""}</p>
+      <p>${n} registo${n !== 1 ? "s" : ""}</p>
+    </div>
+    <button class="cat-linha-btn" style="opacity:${i === 0 ? 0.2 : 1}" onclick="moverCat('${c.id}',-1)">⌃</button>
+    <button class="cat-linha-btn" style="opacity:${i === total - 1 ? 0.2 : 1}" onclick="moverCat('${c.id}',1)">⌄</button>
+    <button class="editar" onclick="editarCat('${c.id}')">✎</button>
+    <button class="apagar" onclick="apagarCat('${c.id}')">🗑</button>
+  </div>`;
+}
+function renderCats() {
+  const ativas = dados.cats.filter(c => !c.arquivada);
+  const arquivadas = dados.cats.filter(c => c.arquivada);
+  document.getElementById("modal").innerHTML = `
+  <div class="veu" onclick="if(event.target===this)fecharCats()">
+    <div class="folha" style="max-height:92vh">
+      <div class="folha-topo">
+        <span class="tit">Categorias${catsVolta ? " — escolhe depois de criar" : ""}</span>
+        <button class="fechar" onclick="fecharCats()">✕</button>
+      </div>
+      <div class="form-inline" style="box-shadow:none;padding:0">
+        <p class="rotulo-campo">${catEdit ? "A editar categoria" : "Nova categoria"}</p>
+        <div class="lado-a-lado">
+          <input id="cat-icone" type="text" maxlength="4" placeholder="🙂" value="${esc(catForm.icone)}"
+            style="flex:0 0 62px;text-align:center;font-size:20px">
+          <input id="cat-nome" type="text" placeholder="Nome" value="${esc(catForm.nome)}">
+        </div>
+        <p class="rotulo-campo">Cor</p>
+        <div class="grelha-cores">
+          ${CORES_CAT.map(cor => `<button class="swatch ${cor === catForm.cor ? "sel" : ""}"
+            style="background:${cor}" onclick="escolherCorCat('${cor}')"></button>`).join("")}
+        </div>
+        <div class="toggle-pais" onclick="alternarDesportoCat()">
+          <span class="txt">Conta como desporto<small>Entra no contador "Desporto este mês"</small></span>
+          <span class="switch ${catForm.desporto ? "on" : ""}"></span>
+        </div>
+        <button class="botao-verde" style="padding:12px" onclick="guardarCat()">${catEdit ? "Guardar alterações" : "Criar categoria"}</button>
+        ${catEdit ? `<button class="botao-verde" style="padding:12px;margin-top:6px;background:var(--cinza)"
+          onclick="cancelarEdicaoCat()">Cancelar edição</button>` : ""}
+      </div>
+      <p class="rotulo-campo" style="margin-top:14px">No registo, por esta ordem</p>
+      ${ativas.map((c, i) => linhaCat(c, i, ativas.length)).join("")}
+      ${arquivadas.length ? `<p class="rotulo-campo" style="margin-top:14px">Arquivadas — fora do registo, o histórico mantém-se</p>` : ""}
+      ${arquivadas.map(c => `
+        <div class="divida-linha" style="opacity:0.6">
+          <div class="leg-icone" style="background:${c.cor};width:30px;height:30px;font-size:14px">${c.icone}</div>
+          <div class="info"><p>${esc(c.nome)}</p><p>${usosCat(c.id)} registo${usosCat(c.id) !== 1 ? "s" : ""}</p></div>
+          <button class="btn-mini" style="background:var(--verde)" onclick="reativarCat('${c.id}')">Reativar</button>
+          <button class="apagar" onclick="apagarCat('${c.id}')">🗑</button>
+        </div>`).join("")}
+    </div>
+  </div>`;
+}
+
+// ---------- ocultar valores + código ----------
+// Aviso honesto: isto esconde os valores de quem olha para o ecrã. Não é segurança
+// a sério — quem tiver o teu login vê os dados de qualquer maneira.
+const pinDefinido = () => !!(dados.seg && dados.seg.hash);
+const podeVerValores = () => valoresVisiveis || !pinDefinido();
+// usado em tudo o que revela quanto dinheiro tenho (nao nos gastos do mes)
+const eurOculto = n => valoresVisiveis ? eur(n) : "••••";
+function hashPin(codigo) {
+  let h = 2166136261 >>> 0;
+  const base = "contas-v1|" + codigo;
+  for (let r = 0; r < 4000; r++) {
+    for (let i = 0; i < base.length; i++) { h ^= base.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    h = (h + r) >>> 0;
+  }
+  return h.toString(16);
+}
+function alternarValores() {
+  if (valoresVisiveis) { valoresVisiveis = false; render(); return; }
+  if (!pinDefinido()) { valoresVisiveis = true; render(); return; }
+  abrirPin("ver");
+}
+let pinEstado = { modo: "", valor: "", primeiro: "", erro: "" };
+function abrirPin(modo) {
+  pinEstado = { modo, valor: "", primeiro: "", erro: "" };
+  renderPin();
+}
+function fecharPin() { document.getElementById("modal").innerHTML = ""; }
+function teclaPin(k) {
+  if (k === "⌫") pinEstado.valor = pinEstado.valor.slice(0, -1);
+  else if (pinEstado.valor.length < 10) pinEstado.valor += k;
+  const d = document.getElementById("pin-pontos");
+  if (d) d.textContent = pinEstado.valor.replace(/./g, "•") || "—";
+}
+function renderPin() {
+  const m = pinEstado.modo;
+  const tit = m === "ver" ? "Código para ver os valores"
+    : m === "remover" ? "Código atual"
+    : m === "trocar" ? "Código atual"
+    : pinEstado.primeiro ? "Repete o código novo" : "Novo código";
+  const sub = m === "ver" ? "Escreve o código para destapar a conta corrente e o investido."
+    : m === "remover" ? "Confirma o código para deixares de o usar."
+    : m === "trocar" ? "Primeiro o código atual, depois escolhes o novo."
+    : pinEstado.primeiro ? "Outra vez, para não haver enganos." : "4 a 10 dígitos. Guarda-o bem — não há como recuperá-lo.";
+  document.getElementById("modal").innerHTML = `
+  <div class="veu" onclick="if(event.target===this)fecharPin()">
+    <div class="folha">
+      <div class="folha-topo">
+        <span class="tit">${tit}</span>
+        <button class="fechar" onclick="fecharPin()">✕</button>
+      </div>
+      <p class="dica">${sub}</p>
+      <div class="pin-pontos mono" id="pin-pontos">${pinEstado.valor.replace(/./g, "•") || "—"}</div>
+      ${pinEstado.erro ? `<p class="pin-erro">${esc(pinEstado.erro)}</p>` : ""}
+      <div class="teclado">
+        ${["1","2","3","4","5","6","7","8","9","","0","⌫"].map(k =>
+          k ? `<button onclick="teclaPin('${k}')">${k}</button>` : `<span></span>`).join("")}
+      </div>
+      <button class="botao-verde" onclick="confirmarPin()">Confirmar</button>
+    </div>
+  </div>`;
+}
+function confirmarPin() {
+  const v = pinEstado.valor;
+  const errar = msg => { pinEstado.erro = msg; pinEstado.valor = ""; renderPin(); };
+  if (!v) { errar("Escreve o código"); return; }
+
+  if (pinEstado.modo === "ver") {
+    if (hashPin(v) !== dados.seg.hash) { errar("Código errado"); return; }
+    valoresVisiveis = true;
+    fecharPin(); render();
+    return;
+  }
+  if (pinEstado.modo === "remover") {
+    if (hashPin(v) !== dados.seg.hash) { errar("Código errado"); return; }
+    dados.seg = null;
+    gravar();
+    fecharPin(); render();
+    toast("Código removido");
+    return;
+  }
+  if (pinEstado.modo === "trocar") {
+    if (hashPin(v) !== dados.seg.hash) { errar("Código errado"); return; }
+    pinEstado = { modo: "definir", valor: "", primeiro: "", erro: "" };
+    renderPin();
+    return;
+  }
+  // definir
+  if (!pinEstado.primeiro) {
+    if (v.length < 4) { errar("Usa pelo menos 4 dígitos"); return; }
+    pinEstado.primeiro = v; pinEstado.valor = ""; pinEstado.erro = "";
+    renderPin();
+    return;
+  }
+  if (v !== pinEstado.primeiro) {
+    pinEstado.primeiro = "";
+    errar("Os códigos não coincidem — começa outra vez");
+    return;
+  }
+  dados.seg = { hash: hashPin(v), criado: hoje() };
+  valoresVisiveis = false;
+  gravar();
+  fecharPin(); render();
+  toast("Código definido — valores ocultos");
 }
 
 // ---------- arranque ----------

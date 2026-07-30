@@ -221,6 +221,11 @@
   .teclado button { padding: 12px 0; font-size: 21px; border-radius: 12px; background: var(--fundo); }
   .teclado button:active { background: var(--claro); }
 
+  .msg-area { width: 100%; min-height: 200px; padding: 13px; border-radius: 12px; background: var(--fundo);
+    border: none; outline: none; font: inherit; font-size: 15px; line-height: 1.55; resize: vertical;
+    margin-bottom: 10px; user-select: text; -webkit-user-select: text; }
+  .msg-area:focus { box-shadow: 0 0 0 2px var(--tinta); }
+
   .grelha-cores { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-bottom: 8px; }
   .swatch { height: 30px; border-radius: 8px; border: 2px solid transparent; }
   .swatch.sel { border-color: var(--tinta); }
@@ -998,8 +1003,8 @@ function apagarTx(id) {
 let pessoasAbertas = {};
 function togglePessoa(k) { pessoasAbertas[k] = !pessoasAbertas[k]; render(); }
 
-function vistaDividas() {
-  // Tudo junto: as compras feitas com dinheiro dos pais entram como a pessoa "pais".
+// Tudo junto: as compras feitas com dinheiro dos pais entram como a pessoa "pais".
+function gruposDivida() {
   const grupos = {};
   const juntar = (nomeRaw, item) => {
     const nome = (nomeRaw || "").trim() || "sem nome";
@@ -1021,6 +1026,10 @@ function vistaDividas() {
       desc: d.desc || "Dívida", cor: "#9AA0A8", icone: "💸",
     });
   });
+  return grupos;
+}
+function vistaDividas() {
+  const grupos = gruposDivida();
   const pessoas = Object.entries(grupos).sort((a, b) => b[1].total - a[1].total);
   const totalGeral = pessoas.reduce((s, p) => s + p[1].total, 0);
 
@@ -1067,8 +1076,10 @@ function vistaDividas() {
             <button class="editar" onclick="${it.kind === "tx" ? `abrirEdicao(${it.id})` : `abrirEdicaoOutra(${it.id})`}">✎</button>
             <button class="apagar" onclick="${it.kind === "tx" ? `apagarTx(${it.id})` : `apagarOutra(${it.id})`}">🗑</button>
           </div>`).join("")}
+        <button class="botao-grande" style="background:var(--azul);box-shadow:0 3px 10px rgba(74,144,217,0.3);margin:10px 0 4px"
+          onclick="abrirMensagem('${kj}')">📤 Pedir o dinheiro (${eur(g.total)})</button>
         ${g.itens.length > 1 ? `
-        <button class="botao-grande" style="background:var(--verde);margin:10px 0 4px"
+        <button class="botao-grande" style="background:var(--verde);margin:0 0 4px"
           onclick="receberTudoPessoa('${kj}')">✓ Recebi tudo de ${esc(g.nome)} (${eur(g.total)})</button>` : ""}
       </div>` : ""}
     </div>`;
@@ -1772,6 +1783,68 @@ function vistaEstat() {
     <p class="sec-titulo">Estatísticas do ano</p>
     ${estatisticasAno()}
   </div>`;
+}
+
+// ---------- mensagem a pedir o dinheiro ----------
+// 32 -> "32€"   32.5 -> "32,50€"
+const eurMsg = n => {
+  const v = Math.round(n * 100) / 100;
+  return (Number.isInteger(v) ? String(v) : v.toFixed(2).replace(".", ",")) + "€";
+};
+// 2026-04-23 -> "23/04"; de outro ano leva o ano: "23/04/25"
+const dataMsg = d => {
+  const p = (d || "").split("-");
+  if (p.length !== 3) return "";
+  return p[2] + "/" + p[1] + (p[0] === String(new Date().getFullYear()) ? "" : "/" + p[0].slice(2));
+};
+const linhaMsg = it => "* " + [dataMsg(it.data), it.desc, eurMsg(it.valor)].filter(x => x).join(" - ");
+function textoPedido(k) {
+  const g = gruposDivida()[k];
+  if (!g) return "";
+  const itens = g.itens.slice().sort((a, b) => a.data.localeCompare(b.data));
+  return "Consegues me mandar o dinheiro destas despesas, por favor? Obrigado!\n\n"
+    + itens.map(linhaMsg).join("\n")
+    + "\n\ntotal: " + eurMsg(g.total);
+}
+function abrirMensagem(k) {
+  const g = gruposDivida()[k];
+  if (!g) { toast("Já não há nada a pedir", true); return; }
+  document.getElementById("modal").innerHTML = `
+  <div class="veu" onclick="if(event.target===this)fecharRegisto()">
+    <div class="folha">
+      <div class="folha-topo">
+        <span class="tit">Pedir o dinheiro — ${esc(g.nome)}</span>
+        <button class="fechar" onclick="fecharRegisto()">✕</button>
+      </div>
+      <p class="dica">Podes editar antes de enviar. Os nomes vêm das descrições que escreveste.</p>
+      <textarea class="msg-area" id="msg-texto" spellcheck="false">${esc(textoPedido(k))}</textarea>
+      <button class="botao-verde" onclick="enviarMensagem()">Enviar mensagem</button>
+      <button class="botao-verde" style="background:var(--tinta);margin-top:8px" onclick="copiarMensagem()">Copiar texto</button>
+    </div>
+  </div>`;
+}
+function textoMensagem() {
+  const el = document.getElementById("msg-texto");
+  return el ? el.value : "";
+}
+async function copiarMensagem(msg) {
+  const t = textoMensagem();
+  if (!t) return;
+  try {
+    await navigator.clipboard.writeText(t);
+    toast(msg || "Texto copiado");
+  } catch (e) {
+    toast("Seleciona o texto e copia à mão", true);
+  }
+}
+async function enviarMensagem() {
+  const t = textoMensagem();
+  if (!t) return;
+  if (navigator.share) {
+    try { await navigator.share({ text: t }); return; }
+    catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  await copiarMensagem("Este browser não partilha — texto copiado");
 }
 
 // ---------- cópia de segurança ----------

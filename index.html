@@ -318,7 +318,7 @@ function pesquisar(v) {
 }
 
 // deslizar para trocar de menu (sem folhas abertas)
-const VISTAS = ["invest", "painel", "estat", "dividas"];
+const VISTAS = ["estat", "invest", "painel", "dividas"];
 let swX = null, swY = null;
 document.addEventListener("touchstart", e => {
   swX = e.touches[0].clientX; swY = e.touches[0].clientY;
@@ -518,12 +518,12 @@ function render() {
   const nDiv = dados.txs.filter(t => ehPais(t) && !t.reembolsado).length + dados.outras.length;
   document.getElementById("app").innerHTML = `
   <div class="tabs">
+    <button class="${vista === "estat" ? "ativo" : ""}" onclick="mudarVista('estat')">
+      <span class="ic">📈</span>Estatísticas</button>
     <button class="${vista === "invest" ? "ativo" : ""}" onclick="mudarVista('invest')">
       <span class="ic">💶</span>Global</button>
     <button class="${vista === "painel" ? "ativo" : ""}" onclick="mudarVista('painel')">
       <span class="ic">📊</span>Painel</button>
-    <button class="${vista === "estat" ? "ativo" : ""}" onclick="mudarVista('estat')">
-      <span class="ic">📈</span>Estatísticas</button>
     <button class="${vista === "dividas" ? "ativo" : ""}" onclick="mudarVista('dividas')">
       <span class="ic">🤝</span>Dívidas${nDiv ? `<span class="badge">${nDiv}</span>` : ""}</button>
   </div>
@@ -614,14 +614,17 @@ function vistaPainel() {
   </div>
 
   <div class="seletor-lista">
+    <button class="${vistaLista === "cats" ? "sel" : ""}" onclick="alternarLista('cats')">Categorias</button>
     <button class="${vistaLista === "movs" ? "sel" : ""}" onclick="alternarLista('movs')">Movimentos</button>
-    <button class="${vistaLista === "cats" ? "sel" : ""}" onclick="alternarLista('cats')">Por categoria</button>
+    <button class="${vistaLista === "grupos" ? "sel" : ""}" onclick="alternarLista('grupos')">Grupos</button>
   </div>
 
   <div class="legenda">
     ${vistaLista === "movs" ? `
     <input class="pesquisa-input" type="search" placeholder="🔍 Pesquisar gastos" value="${esc(pesquisa)}" oninput="pesquisar(this.value)">
-    <div id="lista-movs">${listaMovimentos()}</div>` : `
+    <div id="lista-movs">${listaMovimentos()}</div>`
+    : vistaLista === "grupos" ? listaGrupos()
+    : `
     ${lista.length === 0 && recebido === 0 ? `<p class="vazio-msg">Sem movimentos este mês.<br>Carrega no − para registar o primeiro.</p>` : ""}
     ${listaCategorias(lista, recebido)}`}
   </div>
@@ -641,7 +644,9 @@ function listaMovimentos() {
       if (t.neutro) return false;
       const c = t.cat ? catDe(t.cat) : null;
       return (t.nota || "").toLowerCase().includes(termo)
-        || (c && c.nome.toLowerCase().includes(termo));
+        || (c && c.nome.toLowerCase().includes(termo))
+        // procurar "açores" também devolve as despesas que estão nesse grupo
+        || gruposDe(t.id).some(g => g.nome.toLowerCase().includes(termo));
     });
   } else {
     const mk = mes.getFullYear() + "-" + String(mes.getMonth() + 1).padStart(2, "0");
@@ -669,9 +674,11 @@ function listaMovimentos() {
     const c = catDe(t.cat);
     const pais = ehPais(t);
     const dividido = !pais && typeof t.parteMinha === "number";
-    const extra = pais
+    const gs = gruposDe(t.id);
+    const extra = (pais
       ? " · dinheiro dos pais" + (t.reembolsado ? " ✓" : " (na dívida)")
-      : dividido ? " · a tua parte de " + eur(t.valor) : "";
+      : dividido ? " · a tua parte de " + eur(t.valor) : "")
+      + gs.map(g => " · 📁 " + esc(g.nome)).join("");
     return `
     <div class="leg-linha">
       <div class="leg-icone" style="background:${c.cor}${pais ? ";opacity:0.5" : ""}">${c.icone}</div>
@@ -701,6 +708,124 @@ function listaCategorias(lista, recebido) {
       <div class="leg-nome">Recebido</div>
       <div class="leg-val mono" style="color:var(--verde)">+${eur(recebido)}</div>
     </div>` : ""}`;
+}
+
+// ---------- grupos no painel do mês ----------
+const gruposDe = txId => dados.grupos.filter(g => (g.txIds || []).includes(txId));
+// tudo o que este separador mostra é do mês que está à vista
+function grupoNoMes(g, mk) {
+  const membros = dados.txs.filter(t => (g.txIds || []).includes(t.id) && t.data.slice(0, 7) === mk);
+  return {
+    membros,
+    total: somaVisivel(membros),
+    pais: membros.filter(ehPais).reduce((s, t) => s + t.valor, 0),
+  };
+}
+const LINHA_NOVO_GRUPO = `
+  <div class="leg-linha" onclick="abrirNovoGrupo()" style="cursor:pointer">
+    <div class="leg-icone" style="background:var(--claro);color:var(--cinza)">＋</div>
+    <div class="leg-nome" style="color:var(--cinza)">Novo grupo<small>junta despesas de categorias diferentes</small></div>
+  </div>`;
+function listaGrupos() {
+  const mk = mes.getFullYear() + "-" + String(mes.getMonth() + 1).padStart(2, "0");
+  if (!dados.grupos.length) {
+    return `<p class="vazio-msg">Ainda não tens grupos.<br>Servem para juntar despesas espalhadas por categorias — umas férias, umas obras.</p>`
+      + LINHA_NOVO_GRUPO;
+  }
+  const comMes = dados.grupos
+    .map(g => ({ g, m: grupoNoMes(g, mk) }))
+    .filter(x => x.m.membros.length > 0)
+    .sort((a, b) => b.m.total - a.m.total);
+  if (!comMes.length) {
+    return `<p class="vazio-msg">Nenhum grupo com despesas em ${MESES[mes.getMonth()]}.<br>
+      Tens ${dados.grupos.length} grupo${dados.grupos.length !== 1 ? "s" : ""} — a lista completa está no menu Global.</p>`
+      + LINHA_NOVO_GRUPO;
+  }
+  const totalMes = comMes.reduce((s, x) => s + x.m.total, 0);
+  return `
+  ${comMes.map(({ g, m }) => `
+    <div class="leg-linha" onclick="abrirPastaMes(${g.id})">
+      <div class="leg-icone" style="background:var(--tinta)">📁</div>
+      <div class="leg-nome">${esc(g.nome)}<small>${m.membros.length} despesa${m.membros.length !== 1 ? "s" : ""} em ${MESES[mes.getMonth()]}${m.pais > 0 ? " · " + eur(m.pais) + " dos pais" : ""}</small></div>
+      <div class="leg-val mono">${eur(m.total)}</div>
+    </div>`).join("")}
+  ${LINHA_NOVO_GRUPO}
+  <p class="dica" style="margin-top:12px;text-align:left">
+    ${eur(totalMes)} em grupos este mês. Já está contado nas categorias — isto é só outra forma de olhar para o mesmo dinheiro.
+  </p>`;
+}
+let pastaVolta = null; // reabrir a pasta depois de mexer nas despesas
+function abrirNovoGrupo() {
+  document.getElementById("modal").innerHTML = `
+  <div class="veu" onclick="if(event.target===this)fecharRegisto()">
+    <div class="folha">
+      <div class="folha-topo">
+        <span class="tit">Novo grupo</span>
+        <button class="fechar" onclick="fecharRegisto()">✕</button>
+      </div>
+      <p class="dica">Um grupo junta despesas de categorias diferentes: umas férias, umas obras, um fim de semana.</p>
+      <input class="nota-input" id="ng-nome" type="text" placeholder="Nome do grupo"
+        onkeydown="if(event.key==='Enter')criarGrupoEEscolher()">
+      <button class="botao-verde" onclick="criarGrupoEEscolher()">Criar e escolher despesas ›</button>
+    </div>
+  </div>`;
+  const el = document.getElementById("ng-nome");
+  if (el && el.focus) el.focus();
+}
+function criarGrupoEEscolher() {
+  const el = document.getElementById("ng-nome");
+  const nome = ((el && el.value) || "").trim();
+  if (!nome) { toast("Escreve o nome do grupo", true); return; }
+  const id = Date.now();
+  dados.grupos.push({ id, nome, txIds: [] });
+  gravar();
+  render();
+  // segue logo para a escolha das despesas, senão o grupo vazio não aparece em lado nenhum
+  pastaVolta = id;
+  abrirGrupo(id);
+}
+function abrirPastaMes(gId) {
+  const g = dados.grupos.find(x => x.id === gId);
+  if (!g) return;
+  const mk = mes.getFullYear() + "-" + String(mes.getMonth() + 1).padStart(2, "0");
+  const m = grupoNoMes(g, mk);
+  const ordenados = m.membros.slice().sort((a, b) => b.data.localeCompare(a.data) || b.id - a.id);
+  document.getElementById("modal").innerHTML = `
+  <div class="veu" onclick="if(event.target===this)fecharRegisto()">
+    <div class="folha" style="max-height:90vh">
+      <div class="folha-topo">
+        <span class="tit">📁 ${esc(g.nome)} — ${MESES[mes.getMonth()]}</span>
+        <button class="fechar" onclick="fecharRegisto()">✕</button>
+      </div>
+      ${ordenados.length === 0 ? `<p class="vazio-msg">Sem despesas deste grupo em ${MESES[mes.getMonth()]}.<br>Se as que juntaste são de outro mês, muda de mês no painel.</p>` : ""}
+      ${ordenados.map(t => {
+        const c = catDe(t.cat);
+        const pais = ehPais(t);
+        return `
+        <div class="cartao">
+          <div class="leg-icone" style="background:${c.cor}${pais ? ";opacity:0.5" : ""}">${c.icone}</div>
+          <div class="info">
+            <p>${esc(t.nota || c.nome)}</p>
+            <p>${t.data.split("-").reverse().slice(0, 2).join("/")} · ${c.nome}${pais ? " · dinheiro dos pais" : ""}${typeof t.parteMinha === "number" ? " · a tua parte de " + eur(t.valor) : ""}</p>
+          </div>
+          <span class="mono" style="${pais ? "color:var(--laranja)" : ""}">${pais ? eur(t.valor) : eur(valorVisivel(t))}</span>
+          <button class="editar" onclick="abrirEdicao(${t.id})">✎</button>
+        </div>`;
+      }).join("")}
+      <div class="stats-split" style="margin:10px 0 4px">
+        <div class="linha">
+          <span class="nome">Gastei neste grupo em ${MESES[mes.getMonth()]}</span>
+          <span class="num mono">${eur(m.total)}</span>
+        </div>
+        ${m.pais > 0 ? `
+        <div class="linha">
+          <span class="nome">Com dinheiro dos pais</span>
+          <span class="num mono" style="color:var(--laranja)">${eur(m.pais)}</span>
+        </div>` : ""}
+      </div>
+      <button class="botao-verde" style="background:var(--tinta)" onclick="pastaVolta=${g.id};abrirGrupo(${g.id})">Juntar ou tirar despesas</button>
+    </div>
+  </div>`;
 }
 
 // ---------- registo ----------
@@ -1239,12 +1364,9 @@ function vistaInvest() {
     }).join("")}
 
     <p class="sec-titulo">Grupos de despesas</p>
-    <div class="form-inline">
-      <div class="lado-a-lado">
-        <input id="g-nome" type="text" placeholder="Nome do grupo">
-      </div>
-      <button class="botao-verde" style="padding:11px" onclick="criarGrupo()">Criar grupo</button>
-    </div>
+    <p class="rotulo-campo" style="margin:0 2px 8px">Todos os grupos que já criaste, com o total de sempre.
+      Criam-se no Painel › Grupos; toca num para juntar ou tirar despesas.</p>
+    ${dados.grupos.length === 0 ? `<p class="vazio-msg" style="padding:8px 0 16px">Ainda não criaste grupos.</p>` : ""}
     ${dados.grupos.map(g => {
       const membros = dados.txs.filter(t => g.txIds.includes(t.id));
       const total = somaVisivel(membros);
@@ -1307,20 +1429,6 @@ function vistaInvest() {
       </div>
       <p class="rotulo-campo">Escreve o teu dinheiro total real (conta corrente + investido). A app cria um acerto para bater certo.</p>
       <button class="botao-verde" style="padding:11px;background:var(--tinta)" onclick="acertarSaldo()">Acertar</button>
-    </div>
-
-    <p class="sec-titulo">Cópia de segurança</p>
-    <div class="form-inline">
-      <p class="rotulo-campo">Um ficheiro com tudo: movimentos, dívidas, investimentos, metas, orçamentos e categorias.
-        A nuvem só guarda uma cópia — vale a pena exportares de vez em quando.</p>
-      <button class="botao-verde" style="padding:11px;background:var(--tinta)"
-        onclick="exportarDados()">Exportar cópia (${dados.txs.length} movimentos)</button>
-      <button class="botao-verde" style="padding:11px;margin-top:8px;background:var(--cinza)"
-        onclick="copiarDados()">Copiar JSON</button>
-      <p class="rotulo-campo" style="margin-top:12px">Importar substitui tudo — na app e na nuvem — incluindo o código dos valores.</p>
-      <input type="file" id="ficheiro-import" accept="application/json,.json" style="display:none" onchange="importarFicheiro(this)">
-      <button class="botao-verde" style="padding:11px;background:var(--vermelho)"
-        onclick="abrirImport()">Importar de ficheiro…</button>
     </div>
 
     <p class="sec-titulo">Categorias</p>
@@ -1605,14 +1713,6 @@ function guardarOrcamentos() {
 }
 
 // ---------- grupos de despesas ----------
-function criarGrupo() {
-  const nome = document.getElementById("g-nome").value.trim();
-  if (!nome) { toast("Escreve o nome do grupo", true); return; }
-  dados.grupos.push({ id: Date.now(), nome, txIds: [] });
-  gravar();
-  render();
-  toast("Grupo criado — toca nele para juntar despesas");
-}
 function apagarGrupo(id) {
   if (!confirm("Apagar este grupo? (as despesas em si não são apagadas)")) return;
   dados.grupos = dados.grupos.filter(g => g.id !== id);
@@ -1682,6 +1782,7 @@ function guardarGrupo(gId) {
   gravar();
   document.getElementById("modal").innerHTML = "";
   render();
+  if (pastaVolta === gId) { const id = pastaVolta; pastaVolta = null; abrirPastaMes(id); }
   toast("Grupo guardado");
 }
 
@@ -1847,7 +1948,7 @@ async function enviarMensagem() {
   await copiarMensagem("Este browser não partilha — texto copiado");
 }
 
-// ---------- cópia de segurança ----------
+// ---------- resgate: só usado no ecrã de "não consegui ler os teus dados" ----------
 const pacoteExport = conteudo => JSON.stringify(
   { app: "contas", versao: 1, exportado: new Date().toISOString(), conteudo }, null, 2);
 
@@ -1865,12 +1966,6 @@ function baixarJson(nome, texto) {
     return true;
   } catch (e) { return false; }
 }
-function exportarDados() {
-  if (!baixarJson("contas-" + hoje() + ".json", pacoteExport(dados))) {
-    toast("Não consegui criar o ficheiro", true); return;
-  }
-  toast("Cópia exportada");
-}
 function exportarCache() {
   let cache = null;
   try { cache = localStorage.getItem("contas-cache"); } catch {}
@@ -1881,53 +1976,6 @@ function exportarCache() {
     toast("Não consegui criar o ficheiro", true); return;
   }
   toast("Cópia local exportada");
-}
-async function copiarDados() {
-  try {
-    await navigator.clipboard.writeText(pacoteExport(dados));
-    toast("JSON copiado");
-  } catch (e) { toast("O browser não deixou copiar — usa Exportar", true); }
-}
-function abrirImport() {
-  const el = document.getElementById("ficheiro-import");
-  if (el) el.click();
-}
-// só aceita ficheiros com uma lista de movimentos reconhecível
-function limparConteudo(c) {
-  if (!c || !Array.isArray(c.txs)) return null;
-  return {
-    txs: c.txs,
-    invests: Array.isArray(c.invests) ? c.invests : [],
-    outras: Array.isArray(c.outras) ? c.outras : [],
-    grupos: Array.isArray(c.grupos) ? c.grupos : [],
-    orcamentos: (c.orcamentos && typeof c.orcamentos === "object") ? c.orcamentos : {},
-    metas: Array.isArray(c.metas) ? c.metas : [],
-    seg: c.seg || null,
-    cats: Array.isArray(c.cats) ? c.cats : null,
-  };
-}
-function aplicarImport(texto) {
-  let obj = null;
-  try { obj = JSON.parse(texto); } catch (e) { toast("Esse ficheiro não é JSON válido", true); return false; }
-  const novo = limparConteudo(obj && obj.conteudo ? obj.conteudo : obj);
-  if (!novo) { toast("Não encontrei movimentos nesse ficheiro", true); return false; }
-  if (!confirm("Vais substituir os " + dados.txs.length + " movimentos que tens pelos "
-    + novo.txs.length + " do ficheiro. Apaga o que está na app e na nuvem. Continuar?")) return false;
-  dados = novo;
-  sincronizarCats();
-  valoresVisiveis = false;
-  gravar();
-  render();
-  toast("Importado — " + novo.txs.length + " movimentos");
-  return true;
-}
-function importarFicheiro(input) {
-  const f = input.files && input.files[0];
-  if (!f) return;
-  const leitor = new FileReader();
-  leitor.onload = () => { const t = leitor.result; input.value = ""; aplicarImport(t); };
-  leitor.onerror = () => { input.value = ""; toast("Não consegui ler o ficheiro", true); };
-  leitor.readAsText(f);
 }
 
 // ---------- gestor de categorias ----------

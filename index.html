@@ -1818,6 +1818,20 @@ function guardarGrupo(gId) {
 
 // ---------- estatísticas: dinheiro dos pais ----------
 function irParaMes(a, m) { mes = new Date(a, m, 1); catSel = null; render(); }
+// janela das barras: índice (ano*12+mês) do último mês mostrado
+let fimPais = null;
+const idxMes = d => d.getFullYear() * 12 + d.getMonth();
+const mesDeIdx = n => new Date(Math.floor(n / 12), n % 12, 1);
+function moverJanelaPais(d) {
+  const hojeIdx = idxMes(new Date());
+  fimPais = Math.min(fimPais + d, Math.max(hojeIdx, idxMes(mes)));
+  // se o mês escolhido sair das barras, passa para a ponta que ficou mais perto
+  const v = idxMes(mes);
+  if (v > fimPais) mes = mesDeIdx(fimPais);
+  else if (v < fimPais - 5) mes = mesDeIdx(fimPais - 5);
+  catSel = null;
+  render();
+}
 function seccaoPais() {
   const chave = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
   const totalMes = k => dados.txs.filter(t => ehPais(t) && t.data.slice(0, 7) === k).reduce((s, t) => s + t.valor, 0);
@@ -1833,11 +1847,19 @@ function seccaoPais() {
   const meu = somaVisivel(dados.txs.filter(t => t.tipo === "gasto" && t.data.slice(0, 7) === mk));
   const peso = atual + meu > 0 ? Math.round((atual / (atual + meu)) * 100) : 0;
 
-  // últimos 6 meses até ao mês à vista
+  // 6 meses; começa a acabar no mês de hoje e anda com as setas do gráfico
+  const hojeIdx = idxMes(new Date());
+  const vistoIdx = idxMes(mes);
+  if (fimPais === null) fimPais = Math.max(hojeIdx, vistoIdx);
+  if (vistoIdx > fimPais) fimPais = vistoIdx;
+  if (vistoIdx < fimPais - 5) fimPais = vistoIdx + 5;
+  const fim = fimPais;
+  const podeAvancar = fim < Math.max(hojeIdx, vistoIdx);
   const meses6 = [];
   for (let i = 5; i >= 0; i--) {
-    const d = new Date(mes.getFullYear(), mes.getMonth() - i, 1);
-    meses6.push({ d, v: totalMes(chave(d)) });
+    const n = fim - i;
+    const d = mesDeIdx(n);
+    meses6.push({ d, v: totalMes(chave(d)), sel: n === vistoIdx });
   }
   const maxV = Math.max(...meses6.map(x => x.v), 1);
 
@@ -1856,10 +1878,15 @@ function seccaoPais() {
   </div>
 
   <div class="grafico-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:-6px -6px 6px">
+      <button class="seta" onclick="moverJanelaPais(-1)">‹</button>
+      <span style="font-size:12px;color:var(--cinza)">${MESES[meses6[0].d.getMonth()].slice(0, 3)} ${meses6[0].d.getFullYear()} – ${MESES[meses6[5].d.getMonth()].slice(0, 3)} ${meses6[5].d.getFullYear()}</span>
+      <button class="seta" onclick="moverJanelaPais(1)" style="${podeAvancar ? "" : "opacity:0.25;pointer-events:none"}">›</button>
+    </div>
     <div style="display:flex;align-items:flex-end;gap:8px;height:110px">
       ${meses6.map((x, i) => {
         const h = x.v > 0 ? Math.max((x.v / maxV) * 82, 4) : 2;
-        const atualB = i === 5;
+        const atualB = x.sel;
         return `
         <div onclick="irParaMes(${x.d.getFullYear()},${x.d.getMonth()})" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;cursor:pointer">
           <span class="mono" style="font-size:10px;color:${atualB ? "var(--tinta)" : "var(--cinza)"};margin-bottom:3px">${x.v > 0 ? Math.round(x.v) + "€" : ""}</span>
@@ -1868,7 +1895,7 @@ function seccaoPais() {
       }).join("")}
     </div>
     <div style="display:flex;gap:8px;margin-top:6px">
-      ${meses6.map((x, i) => `<span style="flex:1;text-align:center;font-size:11px;color:var(--cinza);${i === 5 ? "font-weight:600;color:var(--tinta)" : ""}">${MESES[x.d.getMonth()].slice(0, 3)}</span>`).join("")}
+      ${meses6.map((x, i) => `<span style="flex:1;text-align:center;font-size:11px;color:var(--cinza);${x.sel ? "font-weight:600;color:var(--tinta)" : ""}">${MESES[x.d.getMonth()].slice(0, 3)}</span>`).join("")}
     </div>
     ${cats.length ? `
     <p class="rotulo-campo" style="margin-top:12px">Em que gastei este mês</p>

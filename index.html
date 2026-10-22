@@ -598,7 +598,7 @@ function vistaPainel() {
       <span class="num mono" style="color:var(--verde)">+${eur(recebido)}</span>
     </div>
     ${gastoPais > 0 ? `
-    <div class="linha" onclick="mudarVista('dividas')" style="cursor:pointer">
+    <div class="linha" onclick="abrirGastosPais()" style="cursor:pointer">
       <span class="nome"><span class="bola" style="background:var(--laranja)"></span>Comprei com dinheiro dos pais</span>
       <span class="num mono" style="color:var(--laranja)">${eur(gastoPais)} ›</span>
     </div>` : ""}
@@ -632,6 +632,36 @@ function vistaPainel() {
   <div class="acoes">
     <button class="btn-menos" onclick="abrirRegisto('gasto')">−</button>
     <button class="btn-mais" onclick="abrirRegisto('receita')">+</button>
+  </div>`;
+}
+
+// ---------- gastos com dinheiro dos pais (mês à vista) ----------
+function abrirGastosPais() {
+  const mk = mes.getFullYear() + "-" + String(mes.getMonth() + 1).padStart(2, "0");
+  const lista = dados.txs.filter(t => ehPais(t) && t.data.slice(0, 7) === mk)
+    .sort((a, b) => b.data.localeCompare(a.data) || b.id - a.id);
+  const total = lista.reduce((s, t) => s + t.valor, 0);
+  document.getElementById("modal").innerHTML = `
+  <div class="veu" onclick="if(event.target===this)fecharRegisto()">
+    <div class="folha" style="max-height:90vh">
+      <div class="folha-topo">
+        <span class="tit">Dinheiro dos pais — ${MESES[mes.getMonth()]}</span>
+        <button class="fechar" onclick="fecharRegisto()">✕</button>
+      </div>
+      ${lista.map(t => {
+        const c = catDe(t.cat);
+        return `
+        <div class="leg-linha">
+          <div class="leg-icone" style="background:${c.cor}">${c.icone}</div>
+          <div class="leg-nome">${esc(t.nota || c.nome)}<small>${t.data.split("-").reverse().slice(0, 2).join("/")} · ${c.nome}</small></div>
+          <div class="leg-val mono">${eur(t.valor)}</div>
+        </div>`;
+      }).join("")}
+      <div class="leg-linha" style="border-bottom:none;padding-top:12px">
+        <div class="leg-nome" style="font-weight:600">Total</div>
+        <div class="leg-val mono" style="font-weight:700;color:var(--laranja)">${eur(total)}</div>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -1786,6 +1816,70 @@ function guardarGrupo(gId) {
   toast("Grupo guardado");
 }
 
+// ---------- estatísticas: dinheiro dos pais ----------
+function irParaMes(a, m) { mes = new Date(a, m, 1); catSel = null; render(); }
+function seccaoPais() {
+  const chave = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+  const totalMes = k => dados.txs.filter(t => ehPais(t) && t.data.slice(0, 7) === k).reduce((s, t) => s + t.valor, 0);
+
+  const mk = chave(mes);
+  const dAnt = new Date(mes.getFullYear(), mes.getMonth() - 1, 1);
+  const atual = totalMes(mk);
+  const ant = totalMes(chave(dAnt));
+  const dif = atual - ant;
+  const doMes = dados.txs.filter(t => ehPais(t) && t.data.slice(0, 7) === mk);
+
+  // peso no total do que gastei este mês (o meu + o dos pais)
+  const meu = somaVisivel(dados.txs.filter(t => t.tipo === "gasto" && t.data.slice(0, 7) === mk));
+  const peso = atual + meu > 0 ? Math.round((atual / (atual + meu)) * 100) : 0;
+
+  // últimos 6 meses até ao mês à vista
+  const meses6 = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(mes.getFullYear(), mes.getMonth() - i, 1);
+    meses6.push({ d, v: totalMes(chave(d)) });
+  }
+  const maxV = Math.max(...meses6.map(x => x.v), 1);
+
+  // onde foi esse dinheiro este mês
+  const porCat = {};
+  doMes.forEach(t => { porCat[t.cat] = (porCat[t.cat] || 0) + t.valor; });
+  const cats = Object.entries(porCat).map(([id, v]) => ({ ...catDe(id), v })).sort((a, b) => b.v - a.v);
+
+  return `
+  <div class="destaque" onclick="${atual > 0 ? "abrirGastosPais()" : ""}" style="${atual > 0 ? "cursor:pointer" : ""}">
+    <p class="rot">Gastei dos pais em ${MESES[mes.getMonth()]}</p>
+    <p class="val mono" style="color:var(--laranja)">${eur(atual)}</p>
+    <p class="sub">${doMes.length} compra${doMes.length !== 1 ? "s" : ""}${atual > 0 ? " · " + peso + "% de tudo o que gastei" : ""}</p>
+    <p class="sub mono" style="margin-top:6px;color:${dif > 0 ? "var(--vermelho)" : dif < 0 ? "var(--verde)" : "var(--cinza)"}">
+      ${dif === 0 ? "igual a " + MESES[dAnt.getMonth()] : (dif > 0 ? "+" : "−") + eur(Math.abs(dif)) + " vs " + MESES[dAnt.getMonth()]}</p>
+  </div>
+
+  <div class="grafico-card">
+    <div style="display:flex;align-items:flex-end;gap:8px;height:110px">
+      ${meses6.map((x, i) => {
+        const h = x.v > 0 ? Math.max((x.v / maxV) * 82, 4) : 2;
+        const atualB = i === 5;
+        return `
+        <div onclick="irParaMes(${x.d.getFullYear()},${x.d.getMonth()})" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;cursor:pointer">
+          <span class="mono" style="font-size:10px;color:${atualB ? "var(--tinta)" : "var(--cinza)"};margin-bottom:3px">${x.v > 0 ? Math.round(x.v) + "€" : ""}</span>
+          <div style="width:100%;height:${h}px;border-radius:6px;background:var(--laranja);opacity:${atualB ? 1 : 0.35}"></div>
+        </div>`;
+      }).join("")}
+    </div>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      ${meses6.map((x, i) => `<span style="flex:1;text-align:center;font-size:11px;color:var(--cinza);${i === 5 ? "font-weight:600;color:var(--tinta)" : ""}">${MESES[x.d.getMonth()].slice(0, 3)}</span>`).join("")}
+    </div>
+    ${cats.length ? `
+    <p class="rotulo-campo" style="margin-top:12px">Em que gastei este mês</p>
+    ${cats.map(c => `
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:14px">
+        <span>${c.icone}</span><span style="flex:1">${c.nome}</span>
+        <span class="mono" style="color:var(--cinza)">${eur(c.v)}</span>
+      </div>`).join("")}` : ""}
+  </div>`;
+}
+
 // ---------- estatísticas ----------
 function vistaEstat() {
   const mk = mes.getFullYear() + "-" + String(mes.getMonth() + 1).padStart(2, "0");
@@ -1838,6 +1932,9 @@ function vistaEstat() {
         <span class="num mono">${vezesDesporto} ${vezesDesporto === 1 ? "vez" : "vezes"}</span>
       </div>
     </div>
+
+    <p class="sec-titulo">Dinheiro dos pais</p>
+    ${seccaoPais()}
 
     ${comparacao.length ? `<p class="sec-titulo">Categorias — ${MESES[mes.getMonth()]} vs ${nomeAnt}</p>
     <div class="grafico-card">

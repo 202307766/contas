@@ -785,6 +785,7 @@ function listaGrupos() {
   </p>`;
 }
 let pastaVolta = null; // reabrir a pasta depois de mexer nas despesas
+let pastaTudo = false; // a pasta aberta mostra todas as despesas (Global) ou só as do mês
 function abrirNovoGrupo() {
   document.getElementById("modal").innerHTML = `
   <div class="veu" onclick="if(event.target===this)fecharRegisto()">
@@ -814,20 +815,27 @@ function criarGrupoEEscolher() {
   pastaVolta = id;
   abrirGrupo(id);
 }
-function abrirPastaMes(gId) {
+function abrirPastaMes(gId, tudo = false) {
   const g = dados.grupos.find(x => x.id === gId);
   if (!g) return;
+  pastaTudo = tudo;
   const mk = mes.getFullYear() + "-" + String(mes.getMonth() + 1).padStart(2, "0");
-  const m = grupoNoMes(g, mk);
+  let m;
+  if (tudo) {
+    const membros = dados.txs.filter(t => (g.txIds || []).includes(t.id));
+    m = { membros, total: somaVisivel(membros), pais: membros.filter(ehPais).reduce((s, t) => s + t.valor, 0) };
+  } else m = grupoNoMes(g, mk);
   const ordenados = m.membros.slice().sort((a, b) => b.data.localeCompare(a.data) || b.id - a.id);
   document.getElementById("modal").innerHTML = `
   <div class="veu" onclick="if(event.target===this)fecharRegisto()">
     <div class="folha" style="max-height:90vh">
       <div class="folha-topo">
-        <span class="tit">📁 ${esc(g.nome)} — ${MESES[mes.getMonth()]}</span>
+        <span class="tit">📁 ${esc(g.nome)}${tudo ? "" : " — " + MESES[mes.getMonth()]}</span>
         <button class="fechar" onclick="fecharRegisto()">✕</button>
       </div>
-      ${ordenados.length === 0 ? `<p class="vazio-msg">Sem despesas deste grupo em ${MESES[mes.getMonth()]}.<br>Se as que juntaste são de outro mês, muda de mês no painel.</p>` : ""}
+      ${ordenados.length === 0 ? (tudo
+        ? `<p class="vazio-msg">Este grupo ainda não tem despesas.</p>`
+        : `<p class="vazio-msg">Sem despesas deste grupo em ${MESES[mes.getMonth()]}.<br>Se as que juntaste são de outro mês, muda de mês no painel.</p>`) : ""}
       ${ordenados.map(t => {
         const c = catDe(t.cat);
         const pais = ehPais(t);
@@ -836,15 +844,15 @@ function abrirPastaMes(gId) {
           <div class="leg-icone" style="background:${c.cor}${pais ? ";opacity:0.5" : ""}">${c.icone}</div>
           <div class="info">
             <p>${esc(t.nota || c.nome)}</p>
-            <p>${t.data.split("-").reverse().slice(0, 2).join("/")} · ${c.nome}${pais ? " · dinheiro dos pais" : ""}${typeof t.parteMinha === "number" ? " · a tua parte de " + eur(t.valor) : ""}</p>
+            <p>${t.data.split("-").reverse().slice(0, tudo ? 3 : 2).join("/")} · ${c.nome}${pais ? " · dinheiro dos pais" : ""}${typeof t.parteMinha === "number" ? " · a tua parte de " + eur(t.valor) : ""}</p>
           </div>
           <span class="mono" style="${pais ? "color:var(--laranja)" : ""}">${pais ? eur(t.valor) : eur(valorVisivel(t))}</span>
-          <button class="editar" onclick="abrirEdicao(${t.id})">✎</button>
+          <button class="editar" onclick="pastaVolta=${g.id};pastaTudo=${tudo};abrirEdicao(${t.id})">✎</button>
         </div>`;
       }).join("")}
       <div class="stats-split" style="margin:10px 0 4px">
         <div class="linha">
-          <span class="nome">Gastei neste grupo em ${MESES[mes.getMonth()]}</span>
+          <span class="nome">${tudo ? "Total do grupo" : "Gastei neste grupo em " + MESES[mes.getMonth()]}</span>
           <span class="num mono">${eur(m.total)}</span>
         </div>
         ${m.pais > 0 ? `
@@ -853,7 +861,7 @@ function abrirPastaMes(gId) {
           <span class="num mono" style="color:var(--laranja)">${eur(m.pais)}</span>
         </div>` : ""}
       </div>
-      <button class="botao-verde" style="background:var(--tinta)" onclick="pastaVolta=${g.id};abrirGrupo(${g.id})">Juntar ou tirar despesas</button>
+      <button class="botao-verde" style="background:var(--tinta)" onclick="pastaVolta=${g.id};pastaTudo=${tudo};abrirGrupo(${g.id})">Juntar ou tirar despesas</button>
     </div>
   </div>`;
 }
@@ -947,6 +955,7 @@ function confirmarRegisto(catId) {
     gravar();
     fecharRegisto();
     render();
+    if (pastaVolta !== null) { const id = pastaVolta; pastaVolta = null; abrirPastaMes(id, pastaTudo); }
     const avisoE = reg.tipo === "gasto" && catId ? verificarOrcamento(catId, reg.data) : null;
     toast(avisoE || "Registo atualizado", !!avisoE);
     return;
@@ -1395,13 +1404,13 @@ function vistaInvest() {
 
     <p class="sec-titulo">Grupos de despesas</p>
     <p class="rotulo-campo" style="margin:0 2px 8px">Todos os grupos que já criaste, com o total de sempre.
-      Criam-se no Painel › Grupos; toca num para juntar ou tirar despesas.</p>
+      Criam-se no Painel › Grupos; toca num para ver as despesas.</p>
     ${dados.grupos.length === 0 ? `<p class="vazio-msg" style="padding:8px 0 16px">Ainda não criaste grupos.</p>` : ""}
     ${dados.grupos.map(g => {
       const membros = dados.txs.filter(t => g.txIds.includes(t.id));
       const total = somaVisivel(membros);
       return `
-      <div class="cartao" onclick="abrirGrupo(${g.id})" style="cursor:pointer">
+      <div class="cartao" onclick="abrirPastaMes(${g.id}, true)" style="cursor:pointer">
         <div class="leg-icone" style="background:var(--tinta)">📁</div>
         <div class="info">
           <p>${esc(g.nome)}</p>
@@ -1812,7 +1821,7 @@ function guardarGrupo(gId) {
   gravar();
   document.getElementById("modal").innerHTML = "";
   render();
-  if (pastaVolta === gId) { const id = pastaVolta; pastaVolta = null; abrirPastaMes(id); }
+  if (pastaVolta === gId) { const id = pastaVolta; pastaVolta = null; abrirPastaMes(id, pastaTudo); }
   toast("Grupo guardado");
 }
 
